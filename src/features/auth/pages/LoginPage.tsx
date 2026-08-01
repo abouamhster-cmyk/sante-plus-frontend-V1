@@ -9,6 +9,37 @@ import { Logo } from '@/components/ui/Logo';
 import { useBranding } from '@/hooks/useBranding';
 import toast from 'react-hot-toast';
 
+// ============================================================
+// TRADUCTION DES ERREURS SUPABASE
+// ============================================================
+// Supabase renvoie ses erreurs en anglais et dans un langage technique
+// (« Invalid login credentials »). Les afficher telles quelles est
+// incompréhensible pour un utilisateur francophone.
+// On les traduit en messages clairs et actionnables.
+const traduireErreurAuth = (message: string): string => {
+  const m = (message || '').toLowerCase();
+
+  if (m.includes('invalid login credentials') || m.includes('invalid credentials')) {
+    return 'E-mail ou mot de passe incorrect. Vérifiez vos identifiants.';
+  }
+  if (m.includes('email not confirmed')) {
+    return "Votre adresse e-mail n'a pas encore été confirmée. Consultez votre boîte de réception.";
+  }
+  if (m.includes('too many requests') || m.includes('rate limit')) {
+    return 'Trop de tentatives. Patientez quelques minutes avant de réessayer.';
+  }
+  if (m.includes('user not found')) {
+    return "Aucun compte n'est associé à cette adresse e-mail.";
+  }
+  if (m.includes('network') || m.includes('fetch')) {
+    return 'Connexion au serveur impossible. Vérifiez votre connexion internet.';
+  }
+  if (m.includes('user is banned') || m.includes('disabled')) {
+    return 'Ce compte a été désactivé. Contactez l\'administration.';
+  }
+  return message || 'Une erreur est survenue. Veuillez réessayer.';
+};
+
 const LoginPage = () => {
   const navigate = useNavigate();
   const { setUser } = useAuthStore();
@@ -28,8 +59,14 @@ const LoginPage = () => {
 
     const cleanEmail = email.trim().toLowerCase();
 
-    if (!cleanEmail || !password) {
-      toast.error('Veuillez remplir tous les champs');
+    // Retours précis plutôt qu'un message générique :
+    // l'utilisateur sait immédiatement quel champ corriger.
+    if (!cleanEmail) {
+      toast.error('Veuillez saisir votre adresse e-mail');
+      return;
+    }
+    if (!password) {
+      toast.error('Veuillez saisir votre mot de passe');
       return;
     }
 
@@ -45,7 +82,7 @@ const LoginPage = () => {
 
       if (error) {
         console.error('❌ Erreur de connexion:', error);
-        toast.error(error.message || 'Email ou mot de passe incorrect');
+        toast.error(traduireErreurAuth(error.message));
         setIsLoading(false);
         return;
       }
@@ -103,7 +140,7 @@ const LoginPage = () => {
         localStorage.setItem('sante_plus_theme', 'senior');
 
         setUser(data.user, newProfile);
-        toast.success('Bienvenue !');
+        toast.success('Bienvenue sur Santé Plus !');
         navigate('/app', { replace: true });
         return;
       }
@@ -131,7 +168,10 @@ const LoginPage = () => {
 
       console.log('✅ Profil récupéré avec succès:', profile);
       setUser(data.user, profile);
-      toast.success('Bienvenue !');
+      // Salutation personnalisée : plus chaleureux et confirme
+      // clairement à l'utilisateur QUEL compte vient d'être ouvert.
+      const prenom = (profile.full_name || '').split(' ')[0];
+      toast.success(prenom ? `Bon retour, ${prenom} !` : 'Bienvenue !');
       navigate('/app', { replace: true });
 
     } catch (error: any) {
