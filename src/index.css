@@ -1,0 +1,107 @@
+/* 📁 frontend/src/index.css */
+/* ✅ MODE CLAIR NET ET LISIBLE : TEXTES CONTRASTÉS, ZÉRO GRIS PÂLE */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #1a4a3a;
+  --color-primary-dark: #0d2a22;
+  --color-primary-light: #2a6a4a;
+  --color-secondary: #c9a84c;
+  --color-secondary-light: #dcc07a;
+  --color-background: #f5f0e8; /* Fond sable/crème d'origine */
+  --color-surface: #ffffff;
+  --color-surface-soft: #faf7f1;
+  --color-text: #1f2937;       /* Texte principal bien foncé (presque noir) */
+  --color-text-light: #4b5563; /* Texte secondaire bien lisible (gris foncé au lieu de gris pale) */
+  --color-border: #e5e0d8;
+  --color-gold: #c9a84c;
+}
+
+/* ============================================================
+   MODE SOMBRE HAUT CONTRASTE
+============================================================ */
+
+html.dark,
+html[data-theme='dark'] {
+  --color-background: #080c0a !important;
+  --color-surface: #121c16 !important;
+  --color-surface-soft: #1a2922 !important;
+  --color-text: #ffffff !important;
+  --color-text-light: #d1d5db !important;
+  --color-border: #24382e !important;
+  color-scheme: dark !important;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* Forçage mode clair : Plus aucun texte invisible ou gris pale */
+.text-gray-400, .text-gray-500, .text-gray-600 {
+  color: #4b5563 !important; /* Gris foncé parfaitement lisible sur fond blanc */
+  font-weight: 600 !important;
+}
+
+/* Surtout dans la Sidebar et les menus */
+aside span, aside p, aside a {
+  opacity: 1 !important;
+}
+
+/* ============================================================
+   CORRECTIFS MODE SOMBRE
+============================================================ */
+
+html.dark body,
+html.dark #root,
+html.dark main {
+  background-color: #080c0a !important;
+  color: #ffffff !important;
+}
+
+html.dark .bg-white,
+html[data-theme='dark'] .bg-white,
+html.dark .card {
+  background-color: #121c16 !important;
+  color: #ffffff !important;
+  border-color: #24382e !important;
+}
+
+html.dark .bg-gray-50,
+html.dark .bg-gray-100 {
+  background-color: #1a2922 !important;
+}
+
+html.dark .text-gray-900,
+html.dark .text-gray-800,
+html.dark .text-gray-700,
+html.dark .text-gray-600,
+html.dark .text-gray-500,
+html.dark .text-gray-400 {
+  color: #f4f7f5 !important;
+}
+
+html.dark .border,
+html.dark .border-gray-100,
+html.dark .border-gray-200 {
+  border-color: #24382e !important;
+}
+
+html.dark input,
+html.dark textarea,
+html.dark select {
+  background-color: #1a2922 !important;
+  color: #ffffff !important;
+  border-color: #284235 !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 0px; height: 0px; background: transparent; }
+* { scrollbar-width: none; -ms-overflow-style: none; }
