@@ -32,6 +32,25 @@ const ProfilePage = () => {
   const colors = brand.colors;
 
   const { profile, role, logout, updateProfile, refreshProfile } = useAuthStore();
+
+  // ✅ Déconnexion propre et cohérente avec MainLayout :
+  //  - on ATTEND la fin de logout() avant de naviguer (sinon on quitte la page
+  //    pendant que la session s'invalide encore) ;
+  //  - `replace: true` empêche de revenir en arrière sur une page protégée ;
+  //  - un retour visuel confirme l'action, comme partout ailleurs dans l'app.
+  const handleLogout = async () => {
+    const toastId = toast.loading('Déconnexion...');
+    try {
+      await logout();
+      toast.success('À bientôt !', { id: toastId });
+    } catch {
+      // Même en cas d'échec réseau, la session locale est vidée :
+      // on redirige plutôt que de laisser l'utilisateur bloqué.
+      toast.dismiss(toastId);
+    } finally {
+      navigate('/login', { replace: true });
+    }
+  };
   const { patients, fetchPatients } = usePatientStore();
   const { visits, fetchVisits } = useVisitStore();
   const { orders, fetchOrders } = useOrderStore();
@@ -333,7 +352,7 @@ const ProfilePage = () => {
       </section>
 
       {/* BOUTON DÉCONNEXION */}
-      <button onClick={() => { logout(); navigate('/login'); }} className="w-full py-4 rounded-3xl border border-red-100 text-red-500 font-bold text-xs flex justify-center items-center gap-2 hover:bg-red-50 transition">
+      <button onClick={handleLogout} className="w-full py-4 rounded-3xl border border-red-100 text-red-500 font-bold text-xs flex justify-center items-center gap-2 hover:bg-red-50 transition">
         <LogOut size={16} /> Se déconnecter
       </button>
 
