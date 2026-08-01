@@ -236,6 +236,14 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      {/* ============================================================
+          ✅ CORRECTIF MAJEUR — ThemeProvider
+          ============================================================
+          Il était importé mais JAMAIS rendu. C'est lui qui applique les
+          variables CSS de la marque (--color-primary, etc.) sur la page.
+          Sans lui, tout élément stylé via var(--color-*) retombait sur des
+          valeurs par défaut au lieu des couleurs de votre thème. */}
+      <ThemeProvider>
       <BrowserRouter>
         <Routes>
           {/* ROUTES PUBLIQUES D'AUTHENTIFICATION */}
@@ -391,7 +399,62 @@ function App() {
         </Routes>
 
         <InstallPrompt />
+
+        {/* ============================================================
+            ✅ CORRECTIF MAJEUR — Toaster
+            ============================================================
+            `Toaster` était importé mais JAMAIS rendu. Conséquence : les
+            361 appels toast.error() / toast.success() de l'application
+            ne produisaient STRICTEMENT AUCUN affichage.
+            C'est la raison pour laquelle un mot de passe incorrect ne
+            renvoyait aucun message : le code appelait bien toast.error(),
+            mais il n'y avait aucun conteneur pour l'afficher.
+
+            Position `top-center` : sur mobile, un toast en bas est souvent
+            masqué par la barre d'onglets. */}
+        <Toaster
+          position="top-center"
+          reverseOrder={false}
+          gutter={8}
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#ffffff',
+              color: '#1f2937',
+              fontSize: '13px',
+              fontWeight: 500,
+              padding: '12px 16px',
+              borderRadius: '14px',
+              boxShadow: '0 6px 24px rgba(0,0,0,0.10)',
+              maxWidth: '92vw',
+            },
+            success: {
+              duration: 3000,
+              iconTheme: { primary: '#1a4a3a', secondary: '#ffffff' },
+            },
+            error: {
+              // Les erreurs restent plus longtemps : l'utilisateur doit
+              // avoir le temps de lire ce qui n'a pas fonctionné.
+              duration: 5000,
+              iconTheme: { primary: '#dc2626', secondary: '#ffffff' },
+              style: {
+                background: '#fef2f2',
+                color: '#991b1b',
+                border: '1px solid #fecaca',
+                fontSize: '13px',
+                fontWeight: 500,
+                padding: '12px 16px',
+                borderRadius: '14px',
+                maxWidth: '92vw',
+              },
+            },
+            loading: {
+              iconTheme: { primary: '#1a4a3a', secondary: '#ffffff' },
+            },
+          }}
+        />
        </BrowserRouter>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
