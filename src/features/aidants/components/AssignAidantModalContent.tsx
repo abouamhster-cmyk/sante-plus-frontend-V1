@@ -93,23 +93,45 @@ export const AssignAidantModalContent = ({
       if (!targetId || !isAdmin) return;
 
       try {
+        // ============================================================
+        // ✅ CORRECTIF — REQUÊTE 400 (Bad Request)
+        // ============================================================
+        // AVANT :
+        //   .select('aidant_id, aidant:aidants(user_id)')
+        //
+        // Deux erreurs dans cette seule ligne :
+        //   1. La colonne `aidant_id` N'EXISTE PAS dans `aidant_assignments`.
+        //      La colonne réelle est `aidant_user_id`.
+        //   2. La jointure `aidant:aidants(...)` est impossible : il n'y a
+        //      aucune clé étrangère entre aidant_assignments et aidants.
+        //      Les FK pointent vers `profiles`.
+        //
+        // Supabase renvoyait donc un 400, la détection de l'intervenant
+        // permanent échouait en silence (le catch se contentait d'un warn),
+        // et la page restait bloquée sur « Chargement des détails... ».
+        //
+        // APRÈS : `aidant_user_id` référence directement profiles(id),
+        // c'est-à-dire l'identifiant utilisateur recherché. Aucune jointure
+        // n'est nécessaire.
+        //
+        // On filtre aussi sur status='active' : un index unique existe sur
+        // (target_type, target_id) WHERE status='active'. Sans ce filtre,
+        // d'anciennes assignations révoquées pouvaient remonter et faire
+        // échouer maybeSingle() en cas de résultats multiples.
         const { data, error } = await supabase
           .from('aidant_assignments')
-          .select('aidant_id, aidant:aidants(user_id)')
+          .select('aidant_user_id')
           .eq('target_id', targetId)
           .eq('assignment_type', 'primary')
+          .eq('status', 'active')
           .maybeSingle();
 
-        if (!error && data?.aidant) {
-          const aidantData = data.aidant as any;
-          const permanentUserId = Array.isArray(aidantData)
-            ? aidantData[0]?.user_id
-            : aidantData?.user_id;
-
+        if (!error && data?.aidant_user_id) {
+          const permanentUserId = data.aidant_user_id as string;
           setPermanentAidantId(permanentUserId);
-          if (permanentUserId) {
-            setSelectedAidantId(permanentUserId);
-          }
+          setSelectedAidantId(permanentUserId);
+        } else if (error) {
+          console.warn('⚠️ Détection intervenant permanent:', error.message);
         }
       } catch (err) {
         console.warn('⚠️ Impossible de charger l’intervenant permanent');
