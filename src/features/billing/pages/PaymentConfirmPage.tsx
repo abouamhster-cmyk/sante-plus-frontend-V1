@@ -65,15 +65,72 @@ const PaymentConfirmPage = () => {
       if (paymentStatus === 'approved' || paymentStatus === 'success' || paymentStatus === 'paid') {
         console.log('✅ Paiement approuvé !');
         setStatus('success');
-        
+
         let redirectUrl = '/app';
 
-        if (isVisitPayment && visitIdParam) {
-          setMessage('✅ Votre paiement a été confirmé avec succès ! Votre visite est planifiée.');
-          redirectUrl = `/app/visits/${visitIdParam}`;
+        // ============================================================
+        // ✅ CORRECTIF — REDIRECTION VERS LA BONNE PAGE
+        // ============================================================
+        // PROBLÈME : après paiement, l'utilisateur retombait sur l'accueil.
+        //
+        // CAUSE : cette page attendait les paramètres `type`, `visit_id` et
+        // `order_id` dans l'URL. Or la redirection du backend
+        // (/payment/confirm) ne transmet QUE `status` et `transaction_id` :
+        //     res.redirect(`${CLIENT_URL}/payment/confirm?status=...&transaction_id=...`)
+        // Tout le contexte était donc perdu, et aucun cas n'était prévu pour
+        // les abonnements — d'où le repli sur l'accueil.
+        //
+        // SOLUTION : on retrouve le contexte à la source, dans la table
+        // `paiements`, dont les métadonnées contiennent déjà `type`,
+        // `visit_id`, `order_id` et `abonnement_id` (elles y sont écrites au
+        // moment de la création de la transaction FedaPay).
+        // Ce n'est plus dépendant de l'URL, donc ça marche quel que soit le
+        // chemin de retour emprunté par FedaPay.
+        let resolvedVisitId = visitIdParam;
+        let resolvedOrderId = orderIdParam;
+        let resolvedType = type;
+
+        if (transactionId && (!resolvedType || (!resolvedVisitId && !resolvedOrderId))) {
+          try {
+            const { data: paymentRow } = await supabase
+              .from('paiements')
+              .select('metadata, type')
+              .eq('transaction_id', transactionId)
+              .maybeSingle();
+
+            if (paymentRow) {
+              const meta = (paymentRow.metadata || {}) as Record<string, any>;
+              resolvedType = resolvedType || meta.type || paymentRow.type || null;
+              resolvedVisitId = resolvedVisitId || meta.visit_id || null;
+              resolvedOrderId = resolvedOrderId || meta.order_id || null;
+              console.log('🔎 Contexte retrouvé via paiements:', {
+                resolvedType, resolvedVisitId, resolvedOrderId,
+              });
+            }
+          } catch (e) {
+            // Non bloquant : en cas d'échec, on retombe sur la logique
+            // historique ci-dessous. Mieux vaut une redirection imparfaite
+            // qu'un écran d'erreur après un paiement réussi.
+            console.error('⚠️ Impossible de retrouver le contexte du paiement:', e);
+          }
+        }
+
+        const isVisit = resolvedType === 'visit' || !!resolvedVisitId;
+        const isSubscription = resolvedType === 'subscription' && !resolvedVisitId && !resolvedOrderId;
+
+        if (isVisit && resolvedVisitId) {
+          setVisitId(resolvedVisitId);
+          setIsVisit(true);
+          setMessage('✅ Paiement confirmé ! Votre visite est planifiée.');
+          redirectUrl = `/app/visits/${resolvedVisitId}`;
+        } else if (isSubscription) {
+          // ⬅️ CAS AUPARAVANT ABSENT : un abonnement n'a ni visite ni commande.
+          // Il finissait donc sur /app/orders ou sur l'accueil.
+          setMessage('✅ Paiement confirmé ! Votre abonnement est actif.');
+          redirectUrl = '/app/billing';
         } else {
-          let orderId = orderIdParam;
-          
+          let orderId = resolvedOrderId;
+
           if (!orderId && transactionId) {
             const { data: orderData } = await supabase
               .from('commandes')
@@ -87,14 +144,16 @@ const PaymentConfirmPage = () => {
           }
 
           if (orderId) {
-            setMessage('✅ Votre paiement a été confirmé avec succès ! Votre commande est validée.');
+            setMessage('✅ Paiement confirmé ! Votre commande est validée.');
             redirectUrl = `/app/orders/${orderId}`;
             setTargetId(orderId);
           } else {
-            setMessage('✅ Votre paiement a été confirmé avec succès ! Votre commande est validée.');
+            setMessage('✅ Paiement confirmé ! Votre commande est validée.');
             redirectUrl = '/app/orders';
           }
         }
+
+        console.log('➡️ Redirection après paiement:', redirectUrl);
 
         sessionStorage.removeItem('pending_ponctual_order');
         sessionStorage.removeItem('pending_visit_payment');
