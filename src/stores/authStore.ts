@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '@/lib/supabase';
 import { Profile, UserRole } from '@/types';
+import { setSentryUser } from '@/lib/sentry';
 
  
 interface AuthState {
@@ -334,6 +335,11 @@ export const useAuthStore = create<AuthState>()(
           profile,
           role: profile.role ? (profile.role as UserRole) : 'family',
         });
+
+        // ✅ Associe l'utilisateur aux erreurs Sentry — SON IDENTIFIANT SEUL.
+        // Ni nom, ni email : cela permet de savoir COMBIEN de personnes sont
+        // touchées par un bug, sans transmettre la moindre donnée personnelle.
+        setSentryUser(user.id, profile.role || undefined);
       },
 
       // ✅ logout - SANS TOAST
@@ -345,6 +351,10 @@ export const useAuthStore = create<AuthState>()(
         } finally {
           profileCache.clear();
           localStorage.removeItem('auth-storage');
+
+          // Dissocier l'utilisateur : les erreurs suivantes ne doivent plus
+          // lui être rattachées.
+          setSentryUser(null);
 
           set({
             ...initialState,

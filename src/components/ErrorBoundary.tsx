@@ -25,6 +25,7 @@
 // ============================================================
 
 import { Component, ErrorInfo, ReactNode } from 'react';
+import { reportError } from '@/lib/sentry';
 
 interface Props {
   children: ReactNode;
@@ -45,10 +46,15 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // En production, on garde une trace console minimale.
-    // 👉 C'est ici qu'il faudra brancher Sentry / LogRocket :
-    //    Sentry.captureException(error, { extra: errorInfo });
     console.error('❌ [ErrorBoundary] Erreur de rendu interceptée :', error, errorInfo);
+
+    // ✅ Remontée à Sentry avec la pile de composants React.
+    // `componentStack` indique QUEL composant a planté — c'est l'information
+    // la plus utile pour diagnostiquer un écran blanc.
+    reportError(error, {
+      componentStack: errorInfo.componentStack,
+      source: 'ErrorBoundary',
+    });
   }
 
   handleReload = () => {

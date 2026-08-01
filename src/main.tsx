@@ -1,6 +1,7 @@
 // 📁 src/main.tsx
 
 import ReactDOM from 'react-dom/client';
+import { initSentry } from './lib/sentry';
 import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
@@ -18,6 +19,10 @@ import './index.css';
 // `useRef` d'initialisation dans App.tsx s'exécuteraient donc en double.
 // C'est un comportement de développement uniquement (aucun impact en prod),
 // mais il faut le tester avant de l'activer — d'où sa désactivation ici.
+// ⚠️ Sentry doit être initialisé AVANT tout autre code : sinon les erreurs
+// survenant pendant le démarrage de l'application ne seraient pas capturées.
+initSentry();
+
 // ============================================================
 // 🛡️ FILET DE SÉCURITÉ — CHEMINS À DOUBLE SLASH
 // ============================================================
