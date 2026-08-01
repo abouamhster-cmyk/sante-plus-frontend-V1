@@ -7,6 +7,9 @@ import { getThemeColors } from '@/lib/permissions';
 import { useVisitStore } from '@/stores/visitStore';
 import { usePatientStore } from '@/stores/patientStore';
 import { useNotificationStore } from '@/stores/notificationStore';
+import { useOrderStore } from '@/stores/orderStore';
+import { usePaymentStore } from '@/stores/paymentStore';
+import { useAuthStore } from '@/stores/authStore';
 import { supabase } from '@/lib/supabase';
 
 const PaymentConfirmPage = () => {
@@ -22,14 +25,50 @@ const PaymentConfirmPage = () => {
 
   const colors = getThemeColors('senior');
 
+  // ============================================================
+  // ✅ CORRECTIF — DONNÉES PÉRIMÉES APRÈS PAIEMENT
+  // ============================================================
+  // SYMPTÔME : après un paiement, l'utilisateur arrivait bien sur la bonne
+  // page, mais rien n'était à jour. Il fallait actualiser manuellement (F5)
+  // pour voir son abonnement actif ou sa commande payée.
+  //
+  // CAUSE : cette fonction ne rafraîchissait que 3 stores sur 6 — visites,
+  // patients et notifications. Manquaient :
+  //   • useOrderStore    → la commande payée
+  //   • usePaymentStore  → les abonnements ET l'historique des paiements,
+  //                        c'est-à-dire TOUT le contenu de /app/billing
+  //   • authStore        → le profil, qui porte le statut d'abonnement
+  //
+  // De plus, les caches n'étaient pas invalidés AVANT le rechargement : un
+  // store encore considéré comme « frais » pouvait ignorer la demande.
+  //
+  // On invalide donc d'abord, puis on recharge tout en parallèle.
   const refreshData = async () => {
     try {
-      await Promise.all([
+      // 1. Invalider les caches — sinon un store « frais » ignore le refetch.
+      useVisitStore.getState().invalidateCache();
+      useOrderStore.getState().invalidateCache();
+      usePaymentStore.getState().invalidateCache();
+
+      // 2. Recharger en parallèle. `allSettled` et non `all` : si UN appel
+      //    échoue (réseau instable), les autres aboutissent quand même.
+      //    Après un paiement réussi, on ne veut surtout pas tout perdre.
+      const results = await Promise.allSettled([
         useVisitStore.getState().fetchVisits(true),
+        useOrderStore.getState().fetchOrders(true),
+        usePaymentStore.getState().fetchSubscriptions(true),
+        usePaymentStore.getState().fetchPayments(true),
         usePatientStore.getState().fetchPatients(true),
         useNotificationStore.getState().fetchNotifications(true),
+        useAuthStore.getState().refreshProfile(),
       ]);
-      console.log('✅ Données rafraîchies après paiement');
+
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      if (failed > 0) {
+        console.warn(`⚠️ ${failed} rafraîchissement(s) en échec après paiement`);
+      } else {
+        console.log('✅ Données rafraîchies après paiement');
+      }
     } catch (error) {
       console.error('❌ Erreur rafraîchissement données:', error);
     }
