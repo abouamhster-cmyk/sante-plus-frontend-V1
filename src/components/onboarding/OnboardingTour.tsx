@@ -109,14 +109,14 @@ export const OnboardingTour = ({ onComplete }: OnboardingTourProps) => {
   const steps: TourStep[] = useMemo(() => {
     if (!isAuthenticated || !role) return [];
 
-    const seniorImg = '/assets/images/banners/senior-banner.png';
-    const mamanImg = '/assets/images/banners/maman-banner.png';
-    const aidantImg = '/assets/images/banners/aidant-banner.png';
-    const coordImg = '/assets/images/banners/coord-banner.png';
+    const seniorImg = '/assets/images/banners/senior-banner.webp';
+    const mamanImg = '/assets/images/banners/maman-banner.webp';
+    const aidantImg = '/assets/images/banners/aidant-banner.webp';
+    const coordImg = '/assets/images/banners/coord-banner.webp';
 
-    const seniorVisitImg = '/assets/images/banners/senior-visit.png';
-    const mamanVisitImg = '/assets/images/banners/maman-visit.png';
-    const coordVisitImg = '/assets/images/banners/coord-visit.png';
+    const seniorVisitImg = '/assets/images/banners/senior-visit.webp';
+    const mamanVisitImg = '/assets/images/banners/maman-visit.webp';
+    const coordVisitImg = '/assets/images/banners/coord-visit.webp';
 
     // 🦸 RÔLE : AIDANT
     if (role === 'aidant') {

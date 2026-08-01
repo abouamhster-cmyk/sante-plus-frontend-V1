@@ -159,16 +159,16 @@ const DashboardPage = () => {
   }, [isAidant, isAdminOrCoordinator, isFamily, isMaman, role]);
 
   const slides: HeroSlide[] = useMemo(() => {
-    const seniorImg = '/assets/images/banners/senior-banner.png';
-    const mamanImg = '/assets/images/banners/maman-banner.png';
-    const aidantImg = '/assets/images/banners/aidant-banner.png';
-    const coordImg = '/assets/images/banners/coord-banner.png';
+    const seniorImg = '/assets/images/banners/senior-banner.webp';
+    const mamanImg = '/assets/images/banners/maman-banner.webp';
+    const aidantImg = '/assets/images/banners/aidant-banner.webp';
+    const coordImg = '/assets/images/banners/coord-banner.webp';
 
     if (isAdminOrCoordinator) {
       return [
         { title: '👔 Supervision de la Plateforme', description: 'Pilotez l\'activité globale de Santé Plus Services, gérez les alertes opérationnelles et supervisez les interventions en cours.', image: coordImg, actionText: 'Espace Admin', actionPath: '/app/admin' },
         { title: '📝 Inscriptions en attente', description: 'Validez les nouvelles fiches d\'inscriptions des familles locales et de la diaspora béninoise pour activer leurs accès.', image: coordImg, actionText: 'Voir les inscriptions', actionPath: '/app/registrations' },
-        { title: '✓ Validation des Visites', description: 'Examinez les comptes-rendus, photos et mémos vocaux soumis par les aidants pour finaliser la validation des visites.', image: '/assets/images/banners/coord-visit.png', actionText: 'Valider visites', actionPath: '/app/admin/visits/validation' },
+        { title: '✓ Validation des Visites', description: 'Examinez les comptes-rendus, photos et mémos vocaux soumis par les aidants pour finaliser la validation des visites.', image: '/assets/images/banners/coord-visit.webp', actionText: 'Valider visites', actionPath: '/app/admin/visits/validation' },
         { title: '💼 Gestion des Offres & Tarifs', description: 'Configurez les forfaits Santé Plus Services (Seniors) et Santé Plus Maman & Bébé (Grossesse, Postpartum, Allaitement).', image: coordImg, actionText: 'Gérer les offres', actionPath: '/app/offers' },
         { title: '📍 Radar d\'interventions GPS', description: 'Suivez la position géographique en temps réel des intervenants sur le terrain pour contrôler le bon déroulement des missions.', image: coordImg, actionText: 'Ouvrir la carte', actionPath: '/app/map' },
       ];
@@ -178,7 +178,7 @@ const DashboardPage = () => {
       return [
         { title: '🦸 Vos planning de visites', description: 'Consultez les dates et heures de vos prochains accompagnements à domicile pour vos bénéficiaires assignés.', image: aidantImg, actionText: 'Mon planning', actionPath: '/app/planning' },
         { title: '📍 Suivi d\'itinéraire GPS actif', description: 'Enregistrez votre départ et arrivée lors des visites pour rassurer la famille et valider la réalité des missions.', image: aidantImg, actionText: 'Voir la carte', actionPath: '/app/map' },
-        { title: '🛒 Courses et livraisons de confort', description: 'Consultez les commandes de médicaments, produits bébé ou courses de première nécessité de votre zone.', image: '/assets/images/banners/aidant-visit.png', actionText: 'Commandes disponibles', actionPath: '/app/orders' },
+        { title: '🛒 Courses et livraisons de confort', description: 'Consultez les commandes de médicaments, produits bébé ou courses de première nécessité de votre zone.', image: '/assets/images/banners/aidant-visit.webp', actionText: 'Commandes disponibles', actionPath: '/app/orders' },
         { title: '🎤 Comptes-rendus immersifs', description: 'Ajoutez des mémos vocaux en direct et des photos d’intervention pour justifier l’excellence de vos visites à la coordination.', image: aidantImg, actionText: 'Mon historique', actionPath: '/app/history' },
         { title: '📋 Historique de vos rapports', description: 'Retrouvez l\'ensemble de vos rapports d\'intervention complétés, les mémos vocaux transmis et vos états validés.', image: aidantImg, actionText: 'Mon historique', actionPath: '/app/history' },
       ];
@@ -187,7 +187,7 @@ const DashboardPage = () => {
     if (isFamily && isMaman) {
       return [
         { title: '👶 Votre univers Maman & Bébé', description: 'Consultez vos fiches de présences, de suivis et d\'éveil du nouveau-né directement en temps réel.', image: mamanImg, actionText: 'Mes Proches', actionPath: '/app/patients' },
-        { title: '🛒 Achats & soins pour le nouveau-né', description: 'Commandez des couches, du lait ou des produits de soin pour bébé. Un aidant s\'occupe des courses et de la livraison.', image: '/assets/images/banners/maman-visit.png', actionText: 'Passer une commande', actionPath: '/app/orders/create' },
+        { title: '🛒 Achats & soins pour le nouveau-né', description: 'Commandez des couches, du lait ou des produits de soin pour bébé. Un aidant s\'occupe des courses et de la livraison.', image: '/assets/images/banners/maman-visit.webp', actionText: 'Passer une commande', actionPath: '/app/orders/create' },
         { title: '📖 Cahier de liaison numérique', description: 'Consultez le journal d\'éveil de votre bébé, ses rythmes de sommeil et de repas saisis par votre intervenante.', image: mamanImg, actionText: 'Consulter le journal', actionPath: '/app/journal' },
         { title: '🌸 Soins personnalisés', description: 'Renseignez avec précision les habitudes de vie, allergies ou consignes de confort pour guider parfaitement nos intervenants.', image: mamanImg, actionText: 'Mes Proches', actionPath: '/app/patients' },
         { title: '💳 Formules Maternité Confort et Sérénité', description: 'Suivez vos crédits de visites restants, gérez vos factures de forfait ou renouvelez votre formule à l\'acte.', image: mamanImg, actionText: 'Gérer mon forfait', actionPath: '/app/billing' },
@@ -196,7 +196,7 @@ const DashboardPage = () => {
 
     return [
       { title: '👴 Aide et présence aux seniors', description: 'Assurez un suivi continu et complet de nos accompagnements de confort pour votre parent âgé.', image: seniorImg, actionText: 'Mes Proches', actionPath: '/app/patients' },
-      { title: '🛒 Courses simples & ordonnances livrées', description: 'Besoin de récupérer des médicaments ou de faire des provisions ? Confiez la livraison à nos aidants de confiance.', image: '/assets/images/banners/senior-visit.png', actionText: 'Nouvelle commande', actionPath: '/app/orders/create' },
+      { title: '🛒 Courses simples & ordonnances livrées', description: 'Besoin de récupérer des médicaments ou de faire des provisions ? Confiez la livraison à nos aidants de confiance.', image: '/assets/images/banners/senior-visit.webp', actionText: 'Nouvelle commande', actionPath: '/app/orders/create' },
       { title: '📖 Cahier de liaison et suivi quotidien', description: 'Retrouvez l\'humeur, la prise de repas et l\'état général de votre proche après chaque intervention à domicile.', image: seniorImg, actionText: 'Consulter le cahier', actionPath: '/app/journal' },
       { title: '💳 Forfaits Sérénité Seniors & Privilège', description: 'Vérifiez le solde de vos visites d\'abonnements ou choisissez une formule de relais permanent pour votre famille.', image: seniorImg, actionText: 'Mon abonnement', actionPath: '/app/billing' },
       { title: '🏠 Convalescence après hospitalisation', description: 'Organisez sereinement la logistique et l\'installation de confort de votre proche pour son retour à la maison.', image: seniorImg, actionText: 'Mes Proches', actionPath: '/app/patients' },

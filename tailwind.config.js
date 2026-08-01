@@ -56,12 +56,17 @@ export default {
           '0%': { opacity: '0', transform: 'scale(0.96)' },
           '100%': { opacity: '1', transform: 'scale(1)' },
         },
+        slideDown: {
+          '0%': { opacity: '0', transform: 'translateY(-100%)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
       },
       animation: {
         fadeIn: 'fadeIn 200ms ease-out',
         slideUp: 'slideUp 250ms cubic-bezier(0.16, 1, 0.3, 1)',
         slideIn: 'slideIn 250ms cubic-bezier(0.16, 1, 0.3, 1)',
         scaleIn: 'scaleIn 200ms cubic-bezier(0.16, 1, 0.3, 1)',
+        slideDown: 'slideDown 250ms cubic-bezier(0.16, 1, 0.3, 1)',
       },
     },
   },

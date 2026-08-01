@@ -12,29 +12,29 @@ export const APP_DESCRIPTION = 'Accompagnement humain et coordination à domicil
 
 export const LOGO_CONFIG = {
   senior: {
-    icon: '/assets/images/logos/logo-general-icon.png',
-    text: '/assets/images/logos/logo-general-text.png',
-    whiteBg: '/assets/images/logos/logo-general-white-bg.png',
+    icon: '/assets/images/logos/logo-general-icon.webp',
+    text: '/assets/images/logos/logo-general-text.webp',
+    whiteBg: '/assets/images/logos/logo-general-white-bg.webp',
   },
   maman: {
-    icon: '/assets/images/logos/logo-maman-icon.png',
-    text: '/assets/images/logos/logo-maman-text.png',
-    whiteBg: '/assets/images/logos/logo-maman-white-bg.jpeg',
+    icon: '/assets/images/logos/logo-maman-icon.webp',
+    text: '/assets/images/logos/logo-maman-text.webp',
+    whiteBg: '/assets/images/logos/logo-maman-white-bg.webp',
   },
   aidant: {
-    icon: '/assets/images/logos/logo-general-icon.png',
-    text: '/assets/images/logos/logo-general-text.png',
-    whiteBg: '/assets/images/logos/logo-general-white-bg.png',
+    icon: '/assets/images/logos/logo-general-icon.webp',
+    text: '/assets/images/logos/logo-general-text.webp',
+    whiteBg: '/assets/images/logos/logo-general-white-bg.webp',
   },
   coordinator: {
-    icon: '/assets/images/logos/logo-general-icon.png',
-    text: '/assets/images/logos/logo-general-text.png',
-    whiteBg: '/assets/images/logos/logo-general-white-bg.png',
+    icon: '/assets/images/logos/logo-general-icon.webp',
+    text: '/assets/images/logos/logo-general-text.webp',
+    whiteBg: '/assets/images/logos/logo-general-white-bg.webp',
   },
   general: {
-    icon: '/assets/images/logos/logo-general-icon.png',
-    text: '/assets/images/logos/logo-general-text.png',
-    whiteBg: '/assets/images/logos/logo-general-white-bg.png',
+    icon: '/assets/images/logos/logo-general-icon.webp',
+    text: '/assets/images/logos/logo-general-text.webp',
+    whiteBg: '/assets/images/logos/logo-general-white-bg.webp',
   },
 };
 

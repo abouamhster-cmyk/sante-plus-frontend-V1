@@ -263,10 +263,10 @@ export const getThemeColors = (theme: ThemeType | string) => {
         shadow: '0 4px 16px rgba(232, 67, 106, 0.12)',
         shadowHover: '0 8px 32px rgba(232, 67, 106, 0.2)',
         gradient: 'linear-gradient(135deg, #e8436a 0%, #c62850 100%)',
-        logo: '/assets/images/logos/logo-maman-icon.png',
-        logoText: '/assets/images/logos/logo-maman-text.png',
-        banner: '/assets/images/banners/maman-banner.png',
-        visitImage: '/assets/images/banners/maman-visit.png',
+        logo: '/assets/images/logos/logo-maman-icon.webp',
+        logoText: '/assets/images/logos/logo-maman-text.webp',
+        banner: '/assets/images/banners/maman-banner.webp',
+        visitImage: '/assets/images/banners/maman-visit.webp',
       };
       
     case 'aidant':
@@ -287,10 +287,10 @@ export const getThemeColors = (theme: ThemeType | string) => {
         shadow: '0 4px 16px rgba(44, 110, 92, 0.08)',
         shadowHover: '0 8px 32px rgba(44, 110, 92, 0.12)',
         gradient: 'linear-gradient(135deg, #2c6e5c 0%, #1a4a3a 100%)',
-        logo: '/assets/images/logos/logo-general-icon.png',
-        logoText: '/assets/images/logos/logo-general-text.png',
-        banner: '/assets/images/banners/aidant-banner.png',
-        visitImage: '/assets/images/banners/aidant-visit.png',
+        logo: '/assets/images/logos/logo-general-icon.webp',
+        logoText: '/assets/images/logos/logo-general-text.webp',
+        banner: '/assets/images/banners/aidant-banner.webp',
+        visitImage: '/assets/images/banners/aidant-visit.webp',
       };
       
     case 'coordinator':
@@ -311,10 +311,10 @@ export const getThemeColors = (theme: ThemeType | string) => {
         shadow: '0 4px 16px rgba(26, 74, 58, 0.08)',
         shadowHover: '0 8px 32px rgba(26, 74, 58, 0.12)',
         gradient: 'linear-gradient(135deg, #1a4a3a 0%, #0d2a22 100%)',
-        logo: '/assets/images/logos/logo-general-icon.png',
-        logoText: '/assets/images/logos/logo-general-text.png',
-        banner: '/assets/images/banners/coord-banner.png',
-        visitImage: '/assets/images/banners/coord-visit.png',
+        logo: '/assets/images/logos/logo-general-icon.webp',
+        logoText: '/assets/images/logos/logo-general-text.webp',
+        banner: '/assets/images/banners/coord-banner.webp',
+        visitImage: '/assets/images/banners/coord-visit.webp',
       };
       
     default: // senior
@@ -335,10 +335,10 @@ export const getThemeColors = (theme: ThemeType | string) => {
         shadow: '0 4px 16px rgba(26, 74, 58, 0.08)',
         shadowHover: '0 8px 32px rgba(26, 74, 58, 0.12)',
         gradient: 'linear-gradient(135deg, #1a4a3a 0%, #0d2a22 100%)',
-        logo: '/assets/images/logos/logo-general-icon.png',
-        logoText: '/assets/images/logos/logo-general-text.png',
-        banner: '/assets/images/banners/senior-banner.png',
-        visitImage: '/assets/images/banners/senior-visit.png',
+        logo: '/assets/images/logos/logo-general-icon.webp',
+        logoText: '/assets/images/logos/logo-general-text.webp',
+        banner: '/assets/images/banners/senior-banner.webp',
+        visitImage: '/assets/images/banners/senior-visit.webp',
       };
   }
 };

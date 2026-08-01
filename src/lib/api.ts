@@ -38,8 +38,42 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, // 30 secondes timeout
+  // ============================================================
+  // ⏱️ TIMEOUT PORTÉ DE 30 s À 65 s
+  // ============================================================
+  // Le serveur est hébergé sur Render en plan gratuit : l'instance
+  // s'endort après inactivité et met jusqu'à 50 s à se réveiller.
+  // Avec l'ancien timeout de 30 s, la requête ÉCHOUAIT AVANT que le
+  // serveur ait fini de démarrer — l'utilisateur voyait une erreur
+  // réseau alors que tout fonctionnait, il suffisait d'attendre.
+  //
+  // 👉 Ce réglage est un pansement. La vraie solution est de passer
+  //    Render en plan payant : l'instance ne s'endort plus et les
+  //    réponses tombent en moins d'une seconde.
+  timeout: 65000,
 });
+
+// ============================================================
+// 🌙 DÉTECTION DU RÉVEIL DU SERVEUR
+// ============================================================
+// Sans retour visuel, 50 secondes d'attente donnent l'impression que
+// l'application est cassée : l'utilisateur appuie plusieurs fois, quitte,
+// revient... et croit que le service ne marche pas.
+// On prévient donc dès que l'attente devient anormale.
+type WakeListener = (waking: boolean) => void;
+let wakeListeners: WakeListener[] = [];
+
+export const onServerWaking = (fn: WakeListener) => {
+  wakeListeners.push(fn);
+  return () => {
+    wakeListeners = wakeListeners.filter((l) => l !== fn);
+  };
+};
+
+const notifyWaking = (waking: boolean) => wakeListeners.forEach((l) => l(waking));
+
+// Au-delà de ce délai, on considère que le serveur est en train de se réveiller.
+const WAKE_THRESHOLD_MS = 4000;
 
 // ✅ INTERCEPTEUR REQUÊTE - Ajout du token
 api.interceptors.request.use(
@@ -49,6 +83,10 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${session.access_token}`;
     }
     console.log(`📤 [api] ${config.method?.toUpperCase()} ${config.url}`);
+
+    // Si la réponse tarde anormalement, on signale un probable réveil serveur.
+    (config as any).__wakeTimer = setTimeout(() => notifyWaking(true), WAKE_THRESHOLD_MS);
+
     return config;
   },
   (error) => Promise.reject(error)
@@ -57,10 +95,15 @@ api.interceptors.request.use(
 // ✅ INTERCEPTEUR RÉPONSE - Gestion d'erreur améliorée
 api.interceptors.response.use(
   (response) => {
+    clearTimeout((response.config as any).__wakeTimer);
+    notifyWaking(false);
     console.log(`📤 [api] Réponse: ${response.config.url} - ${response.status}`);
     return response;
   },
   (error) => {
+    clearTimeout((error.config as any)?.__wakeTimer);
+    notifyWaking(false);
+
     // ✅ Log détaillé de l'erreur
     console.error('❌ [api] Erreur:', {
       url: error.config?.url,

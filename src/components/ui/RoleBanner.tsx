@@ -12,16 +12,16 @@ export const RoleBanner = ({ className, children }: RoleBannerProps) => {
   const getBannerImage = () => {
     if (role === 'family') {
       return profile?.patient_category === 'maman_bebe' 
-        ? '/assets/images/banners/maman-banner.png'
-        : '/assets/images/banners/senior-banner.png';
+        ? '/assets/images/banners/maman-banner.webp'
+        : '/assets/images/banners/senior-banner.webp';
     }
     if (role === 'aidant') {
-      return '/assets/images/banners/aidant-banner.png';
+      return '/assets/images/banners/aidant-banner.webp';
     }
     if (role === 'coordinator' || role === 'admin') {
-      return '/assets/images/banners/coord-banner.png';
+      return '/assets/images/banners/coord-banner.webp';
     }
-    return '/assets/images/banners/senior-banner.png';
+    return '/assets/images/banners/senior-banner.webp';
   };
 
   return (

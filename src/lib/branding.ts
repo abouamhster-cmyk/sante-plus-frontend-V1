@@ -41,34 +41,34 @@ export interface BrandConfig {
 
 const LOGOS = {
   general: {
-    icon: '/assets/images/logos/logo-general-icon.png',
-    text: '/assets/images/logos/logo-general-text.png',
-    whiteBg: '/assets/images/logos/logo-general-white-bg.png',
+    icon: '/assets/images/logos/logo-general-icon.webp',
+    text: '/assets/images/logos/logo-general-text.webp',
+    whiteBg: '/assets/images/logos/logo-general-white-bg.webp',
   },
   senior: {
-    icon: '/assets/images/logos/logo-general-icon.png',
-    text: '/assets/images/logos/logo-general-text.png',
-    whiteBg: '/assets/images/logos/logo-general-white-bg.png',
+    icon: '/assets/images/logos/logo-general-icon.webp',
+    text: '/assets/images/logos/logo-general-text.webp',
+    whiteBg: '/assets/images/logos/logo-general-white-bg.webp',
   },
   maman: {
-    icon: '/assets/images/logos/logo-maman-icon.png',
-    text: '/assets/images/logos/logo-maman-text.png',
-    whiteBg: '/assets/images/logos/logo-maman-white-bg.jpeg',
+    icon: '/assets/images/logos/logo-maman-icon.webp',
+    text: '/assets/images/logos/logo-maman-text.webp',
+    whiteBg: '/assets/images/logos/logo-maman-white-bg.webp',
   },
   aidant: {
-    icon: '/assets/images/logos/logo-general-icon.png',
-    text: '/assets/images/logos/logo-general-text.png',
-    whiteBg: '/assets/images/logos/logo-general-white-bg.png',
+    icon: '/assets/images/logos/logo-general-icon.webp',
+    text: '/assets/images/logos/logo-general-text.webp',
+    whiteBg: '/assets/images/logos/logo-general-white-bg.webp',
   },
   coordinator: {
-    icon: '/assets/images/logos/logo-general-icon.png',
-    text: '/assets/images/logos/logo-general-text.png',
-    whiteBg: '/assets/images/logos/logo-general-white-bg.png',
+    icon: '/assets/images/logos/logo-general-icon.webp',
+    text: '/assets/images/logos/logo-general-text.webp',
+    whiteBg: '/assets/images/logos/logo-general-white-bg.webp',
   },
   admin: {
-    icon: '/assets/images/logos/logo-general-icon.png',
-    text: '/assets/images/logos/logo-general-text.png',
-    whiteBg: '/assets/images/logos/logo-general-white-bg.png',
+    icon: '/assets/images/logos/logo-general-icon.webp',
+    text: '/assets/images/logos/logo-general-text.webp',
+    whiteBg: '/assets/images/logos/logo-general-white-bg.webp',
   },
 };
 
@@ -93,8 +93,8 @@ const COLORS: Record<BrandTheme, BrandColors> = {
     logo: LOGOS.senior.icon,
     logoText: LOGOS.senior.text,
     logoWhiteBg: LOGOS.senior.whiteBg,
-    banner: '/assets/images/banners/senior-banner.png',
-    visitImage: '/assets/images/banners/senior-visit.png',
+    banner: '/assets/images/banners/senior-banner.webp',
+    visitImage: '/assets/images/banners/senior-visit.webp',
   },
   maman: {
     primary: '#db4a6d',
@@ -116,8 +116,8 @@ const COLORS: Record<BrandTheme, BrandColors> = {
     logo: LOGOS.maman.icon,
     logoText: LOGOS.maman.text,
     logoWhiteBg: LOGOS.maman.whiteBg,
-    banner: '/assets/images/banners/maman-banner.png',
-    visitImage: '/assets/images/banners/maman-visit.png',
+    banner: '/assets/images/banners/maman-banner.webp',
+    visitImage: '/assets/images/banners/maman-visit.webp',
   },
   general: {
     primary: '#1a4a3a',
@@ -139,8 +139,8 @@ const COLORS: Record<BrandTheme, BrandColors> = {
     logo: LOGOS.general.icon,
     logoText: LOGOS.general.text,
     logoWhiteBg: LOGOS.general.whiteBg,
-    banner: '/assets/images/banners/senior-banner.png',
-    visitImage: '/assets/images/banners/senior-visit.png',
+    banner: '/assets/images/banners/senior-banner.webp',
+    visitImage: '/assets/images/banners/senior-visit.webp',
   },
   aidant: {
     primary: '#1f485c',
@@ -162,8 +162,8 @@ const COLORS: Record<BrandTheme, BrandColors> = {
     logo: LOGOS.aidant.icon,
     logoText: LOGOS.aidant.text,
     logoWhiteBg: LOGOS.aidant.whiteBg,
-    banner: '/assets/images/banners/aidant-banner.png',
-    visitImage: '/assets/images/banners/aidant-visit.png',
+    banner: '/assets/images/banners/aidant-banner.webp',
+    visitImage: '/assets/images/banners/aidant-visit.webp',
   },
   coordinator: {
     primary: '#1a4a3a',
@@ -185,8 +185,8 @@ const COLORS: Record<BrandTheme, BrandColors> = {
     logo: LOGOS.coordinator.icon,
     logoText: LOGOS.coordinator.text,
     logoWhiteBg: LOGOS.coordinator.whiteBg,
-    banner: '/assets/images/banners/coord-banner.png',
-    visitImage: '/assets/images/banners/coord-visit.png',
+    banner: '/assets/images/banners/coord-banner.webp',
+    visitImage: '/assets/images/banners/coord-visit.webp',
   },
   admin: {
     primary: '#1a4a3a',
@@ -208,8 +208,8 @@ const COLORS: Record<BrandTheme, BrandColors> = {
     logo: LOGOS.admin.icon,
     logoText: LOGOS.admin.text,
     logoWhiteBg: LOGOS.admin.whiteBg,
-    banner: '/assets/images/banners/coord-banner.png',
-    visitImage: '/assets/images/banners/coord-visit.png',
+    banner: '/assets/images/banners/coord-banner.webp',
+    visitImage: '/assets/images/banners/coord-visit.webp',
   },
 };
 

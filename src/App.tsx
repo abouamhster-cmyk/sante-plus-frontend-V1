@@ -8,6 +8,8 @@ import { Toaster } from 'react-hot-toast';
 import { ThemeProvider } from '@/components/theme/ThemeProvider';
 import { InstallPrompt } from '@/components/PWA/InstallPrompt';
 import { ConfirmDialogHost } from '@/components/ui/ConfirmDialog';
+import { NetworkStatus } from '@/components/ui/NetworkStatus';
+import { ServerWakingIndicator } from '@/components/ui/ServerWakingIndicator';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { RoleGuard } from '@/components/auth/RoleGuard';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -405,6 +407,14 @@ function App() {
             Remplace les 18 window.confirm() natifs par une modale aux
             couleurs de la marque, cohérente sur mobile comme sur desktop. */}
         <ConfirmDialogHost />
+
+        {/* 📶 Bandeau hors-ligne : l'app n'avait AUCUNE détection réseau.
+            Indispensable pour des aidants en visite à domicile. */}
+        <NetworkStatus />
+
+        {/* 🌙 Réveil du serveur Render (plan gratuit, jusqu'à 50 s).
+            Sans ce message, l'utilisateur croit l'application cassée. */}
+        <ServerWakingIndicator />
 
         {/* ============================================================
             ✅ CORRECTIF MAJEUR — Toaster
