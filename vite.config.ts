@@ -88,7 +88,7 @@ export default defineConfig(({ mode }) => ({
   server: {
     proxy: {
       '/api': {
-        target: 'https://app-react-back.onrender.com',
+        target: 'https://sante-plus-backend-v1.onrender.com',
         changeOrigin: true,
         secure: false,
       },
