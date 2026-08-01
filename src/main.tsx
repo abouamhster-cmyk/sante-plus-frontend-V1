@@ -18,6 +18,32 @@ import './index.css';
 // `useRef` d'initialisation dans App.tsx s'exécuteraient donc en double.
 // C'est un comportement de développement uniquement (aucun impact en prod),
 // mais il faut le tester avant de l'activer — d'où sa désactivation ici.
+// ============================================================
+// 🛡️ FILET DE SÉCURITÉ — CHEMINS À DOUBLE SLASH
+// ============================================================
+// Un service externe (FedaPay, un email, un lien partagé) peut renvoyer
+// l'utilisateur sur une URL du type :
+//     https://mon-app.vercel.app//payment/confirm?status=approved
+//
+// React Router ne reconnaît pas "//payment/confirm" comme la route
+// "/payment/confirm" : la navigation tombe sur la route attrape-tout
+// (path="*") et l'utilisateur se retrouve à l'accueil, en perdant tous
+// ses paramètres — c'est ce qui cassait le retour de paiement.
+//
+// La cause a été corrigée à la source côté backend, mais on normalise
+// aussi ici : ce cas peut resurgir de n'importe quel lien externe, et
+// une redirection silencieuse vers l'accueil est très difficile à
+// diagnostiquer. `replaceState` conserve la query string et n'ajoute
+// pas d'entrée dans l'historique.
+if (window.location.pathname.includes('//')) {
+  const cleanPath = window.location.pathname.replace(/\/{2,}/g, '/');
+  window.history.replaceState(
+    null,
+    '',
+    cleanPath + window.location.search + window.location.hash
+  );
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <ErrorBoundary>
     <App />
