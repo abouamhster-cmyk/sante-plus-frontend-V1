@@ -353,7 +353,23 @@ export const useAuthStore = create<AuthState>()(
             isInitializing: false,
           });
 
-          window.location.href = '/login';
+          // ============================================================
+          // ✅ CORRECTIF — la « double actualisation » à la déconnexion
+          // ============================================================
+          // AVANT : cette ligne forçait un rechargement complet du navigateur
+          //     window.location.href = '/login';
+          // ... alors que l'appelant faisait DÉJÀ navigate('/login').
+          //
+          // Les deux se déclenchaient l'un après l'autre :
+          //   1. navigate('/login')        → transition React Router (instantanée)
+          //   2. window.location.href      → rechargement complet de la page
+          // D'où la sensation de « seconde actualisation » et l'écran qui
+          // clignote, avec le téléchargement inutile de tout le bundle.
+          //
+          // APRÈS : le store se contente de vider l'état. La navigation est
+          // gérée par l'appelant (navigate), ce qui est instantané et fluide.
+          // L'état est intégralement réinitialisé juste au-dessus, donc aucun
+          // résidu de session ne subsiste.
         }
       },
 
