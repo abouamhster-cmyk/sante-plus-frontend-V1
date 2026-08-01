@@ -1,6 +1,5 @@
 // 📁 src/features/layout/MainLayout.tsx
-// ✅ MAIN LAYOUT ADMIN : AJOUT DIRECT DE LA PAGE AIDANTS DANS LE MENU LATÉRAL
-
+ 
 import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import {
@@ -17,11 +16,31 @@ import { ReminderBanner } from '@/components/reminders/ReminderBanner';
 import { MobileTabBar } from './MobileTabBar';
 import { OnboardingTour } from '@/components/onboarding/OnboardingTour';
 import { Logo } from '@/components/ui/Logo';
+import toast from 'react-hot-toast';
 
 const MainLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { profile, role, logout } = useAuthStore();
+
+  // ✅ Déconnexion propre :
+  //  - on ATTEND la fin de logout() avant de naviguer (sinon on quittait la page
+  //    pendant que la session s'invalidait encore) ;
+  //  - `replace: true` empêche un retour arrière sur une page protégée ;
+  //  - un retour visuel confirme l'action à l'utilisateur.
+  const handleLogout = async () => {
+    const toastId = toast.loading('Déconnexion...');
+    try {
+      await logout();
+      toast.success('À bientôt !', { id: toastId });
+    } catch {
+      // Même en cas d'échec réseau, la session locale est vidée :
+      // on redirige quand même plutôt que de laisser l'utilisateur bloqué.
+      toast.dismiss(toastId);
+    } finally {
+      navigate('/login', { replace: true });
+    }
+  };
   const { fetchNotifications, subscribe, unsubscribe } = useNotificationStore();
   const brand = useBranding();
   const colors = brand.colors;
@@ -46,7 +65,7 @@ const MainLayout = () => {
     const allItems = [
       { icon: <Home size={20} />, label: "Mon Espace d'Accueil", path: '/app', roles: ['family', 'aidant', 'admin', 'coordinator'] },
       { icon: <LayoutDashboard size={20} />, label: "Admin", path: '/app/admin', roles: ['admin', 'coordinator'] },
-      { icon: <UserCheck size={20} />, label: "Aidants", path: '/app/aidants', roles: ['admin', 'coordinator'] }, // ✅ REMPLACÉ POUR L'ADMIN
+      { icon: <UserCheck size={20} />, label: "Aidants", path: '/app/aidants', roles: ['admin', 'coordinator'] },  
       { icon: <Users size={20} />, label: 'Bénéficiaires', path: '/app/patients', roles: ['family', 'admin', 'coordinator'] },
       { icon: <Briefcase size={20} />, label: "Missions", path: '/app/missions', roles: ['aidant'] },
       { icon: <Calendar size={20} />, label: role === 'aidant' ? 'Planning' : "Visites", path: role === 'aidant' ? '/app/planning' : '/app/visits', roles: ['family', 'aidant', 'admin', 'coordinator'] },
@@ -67,7 +86,7 @@ const MainLayout = () => {
     <div className="min-h-screen w-full overflow-x-hidden transition-colors duration-200" style={{ backgroundColor: 'var(--color-background)' }}>
       {!isMobile && (
         <aside className="hidden md:flex fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-[#14221b] shadow-lg border-r border-black/5 dark:border-[#283c32] flex-col">
-          <SidebarContent navItems={navItems} locationPath={location.pathname} colors={colors} profile={profile} onLogout={() => { logout(); navigate('/login'); }} />
+          <SidebarContent navItems={navItems} locationPath={location.pathname} colors={colors} profile={profile} onLogout={handleLogout} />
         </aside>
       )}
 
