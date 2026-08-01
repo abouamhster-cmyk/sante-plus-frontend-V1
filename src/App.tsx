@@ -119,25 +119,84 @@ function App() {
 
     console.log('📡 [Realtime] Initialisation du canal temps réel unique...');
 
+    // ============================================================
+    // ⚡ OPTIMISATION DES RECHARGEMENTS TEMPS RÉEL
+    // ============================================================
+    // AVANT : chaque événement Realtime déclenchait un rechargement COMPLET
+    // de la liste, après seulement 300 ms de regroupement — même si l'onglet
+    // était en arrière-plan.
+    //
+    // Concrètement, avec 1 000 utilisateurs connectés, UNE seule visite créée
+    // provoquait jusqu'à 1 000 rechargements simultanés de listes entières.
+    // C'est une amplification qui tient à quelques centaines d'utilisateurs,
+    // puis fait exploser la charge Supabase.
+    //
+    // DEUX CORRECTIFS, sans aucun risque sur l'exactitude des données :
+    //
+    //   1. Ne rien recharger quand l'onglet est en arrière-plan.
+    //      On note simplement qu'un rafraîchissement est dû, et on l'effectue
+    //      au retour de l'utilisateur. Un onglet ouvert en arrière-plan toute
+    //      la journée ne génère plus une seule requête.
+    //
+    //   2. Regroupement porté de 300 ms à 1500 ms. Lors d'une rafale (un admin
+    //      qui valide 10 visites d'affilée), on effectue UN rechargement au
+    //      lieu de 10. Le délai reste imperceptible à l'usage.
+    const REALTIME_DEBOUNCE_MS = 1500;
+
+    // Rafraîchissements en attente pendant que l'onglet est masqué.
+    const pending = { visits: false, orders: false };
+
+    const runFetchVisits = () => {
+      console.log('🔄 [Realtime] Rechargement des visites...');
+      useVisitStore.getState().invalidateCache();
+      useVisitStore.getState().fetchVisits(true);
+    };
+
+    const runFetchOrders = () => {
+      console.log('🔄 [Realtime] Rechargement des commandes...');
+      useOrderStore.getState().invalidateCache();
+      useOrderStore.getState().fetchOrders(true);
+    };
+
     let visitTimeout: any;
     const debouncedFetchVisits = () => {
       clearTimeout(visitTimeout);
       visitTimeout = setTimeout(() => {
-        console.log('🔄 [Realtime] Rechargement des visites...');
-        useVisitStore.getState().invalidateCache();
-        useVisitStore.getState().fetchVisits(true);
-      }, 300);
+        if (document.hidden) {
+          pending.visits = true;
+          console.log('💤 [Realtime] Onglet masqué — rechargement des visites différé');
+          return;
+        }
+        runFetchVisits();
+      }, REALTIME_DEBOUNCE_MS);
     };
 
     let orderTimeout: any;
     const debouncedFetchOrders = () => {
       clearTimeout(orderTimeout);
       orderTimeout = setTimeout(() => {
-        console.log('🔄 [Realtime] Rechargement des commandes...');
-        useOrderStore.getState().invalidateCache();
-        useOrderStore.getState().fetchOrders(true);
-      }, 300);
+        if (document.hidden) {
+          pending.orders = true;
+          console.log('💤 [Realtime] Onglet masqué — rechargement des commandes différé');
+          return;
+        }
+        runFetchOrders();
+      }, REALTIME_DEBOUNCE_MS);
     };
+
+    // Au retour de l'utilisateur, on rattrape ce qui a été différé.
+    const handleRealtimeVisibility = () => {
+      if (document.hidden) return;
+      if (pending.visits) {
+        pending.visits = false;
+        runFetchVisits();
+      }
+      if (pending.orders) {
+        pending.orders = false;
+        runFetchOrders();
+      }
+    };
+    document.addEventListener('visibilitychange', handleRealtimeVisibility);
 
     const visitsChannel = supabase
       .channel('realtime_visites_consolidated')
@@ -166,6 +225,7 @@ function App() {
     return () => {
       clearTimeout(visitTimeout);
       clearTimeout(orderTimeout);
+      document.removeEventListener('visibilitychange', handleRealtimeVisibility);
       supabase.removeChannel(visitsChannel);
       supabase.removeChannel(ordersChannel);
     };
