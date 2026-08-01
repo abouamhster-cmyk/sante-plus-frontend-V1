@@ -38,6 +38,7 @@ import { CompleteVisitModal } from '@/components/visits/CompleteVisitModal';
 import { AssignAidantModal } from '@/features/aidants/components/AssignAidantModal';
 import { supabase } from '@/lib/supabase';
 import toast from 'react-hot-toast';
+import { confirmDialog } from '@/components/ui/ConfirmDialog';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://app-react-back.onrender.com/api';
 
@@ -236,7 +237,7 @@ const VisitDetailPage = () => {
   const handleCancel = async () => {
     if (isActionPending.current) return;
 
-    if (window.confirm('Annuler cette visite ?')) {
+    if (await confirmDialog({ title: 'Annuler cette visite ?', variant: 'danger' })) {
       isActionPending.current = true;
       setIsUpdating(true);
       try {

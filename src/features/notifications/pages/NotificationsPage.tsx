@@ -15,6 +15,7 @@ import { useBranding } from '@/hooks/useBranding';
 import { formatDateTime, cn } from '@/utils/helpers';
 import { supabase } from '@/lib/supabase';
 import toast from 'react-hot-toast';
+import { confirmDialog } from '@/components/ui/ConfirmDialog';
 
 // ============================================================
 // 🧠 MOTEUR DE TRADUCTION DYNAMIQUE
@@ -190,7 +191,7 @@ const NotificationsPage = () => {
   // ✅ SUPPRESSION TOTALE
   const handleClearAll = async () => {
     if (!profile?.id) return;
-    if (!window.confirm('Voulez-vous vider définitivement tout votre historique de notifications ?')) return;
+    if (!await confirmDialog({ title: 'Voulez-vous vider définitivement tout votre historique de notifications ?', variant: 'danger' })) return;
 
     setIsClearingAll(true);
     try {

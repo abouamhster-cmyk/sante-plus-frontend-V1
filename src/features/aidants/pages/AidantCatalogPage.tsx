@@ -18,6 +18,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Illustration } from '@/components/ui/Illustration';
 import { AidantFilters as AidantFiltersType } from '@/types/aidant';
 import toast from 'react-hot-toast';
+import { confirmDialog } from '@/components/ui/ConfirmDialog';
 
 const AidantCatalogPage = () => {
   const navigate = useNavigate();
@@ -104,7 +105,7 @@ const AidantCatalogPage = () => {
   };
 
   const handleRevoke = async (assignmentId: string) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir libérer cet aidant ? Il ne sera plus lié à votre compte.")) return;
+    if (!await confirmDialog({ title: "Êtes-vous sûr de vouloir libérer cet aidant ? Il ne sera plus lié à votre compte.", variant: 'danger' })) return;
 
     try {
       await revokeAssignment(assignmentId, "Révocation demandée depuis le catalogue d'aidants");

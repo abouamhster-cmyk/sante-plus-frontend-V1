@@ -28,6 +28,7 @@ import { getThemeColors, getThemeByRole } from '@/lib/permissions';
 import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/utils/helpers';
 import toast from 'react-hot-toast';
+import { confirmDialog } from '@/components/ui/ConfirmDialog';
 
 // ============================================================
 // TYPES
@@ -351,7 +352,7 @@ const AssignAidantPage = () => {
       return;
     }
 
-    if (!window.confirm(`Retirer l'assignation de ${item.targetName} ?`)) return;
+    if (!await confirmDialog({ title: `Retirer l'assignation de ${item.targetName} ?`, variant: 'danger' })) return;
 
     setProcessingItems(prev => new Set(prev).add(item.id));
     setIsProcessing(true);
@@ -385,7 +386,7 @@ const AssignAidantPage = () => {
       return;
     }
 
-    if (!window.confirm(`Assigner ${unassigned.length} bénéficiaire(s) à cet aidant ?`)) return;
+    if (!await confirmDialog({ title: `Assigner ${unassigned.length} bénéficiaire(s) à cet aidant ?`, variant: 'default' })) return;
 
     const itemIds = unassigned.map(item => item.id);
     setProcessingItems(prev => new Set([...prev, ...itemIds]));

@@ -28,6 +28,7 @@ import { Modal } from '@/components/ui/Modal';
 import { InfoRow } from '@/components/ui/InfoRow';
 import { cn } from '@/utils/helpers';
 import toast from 'react-hot-toast';
+import { confirmDialog } from '@/components/ui/ConfirmDialog';
 
 interface Aidant {
   id: string;
@@ -207,7 +208,7 @@ const AidantsPage = () => {
   };
 
   const handleApproveAidant = async (aidant: Aidant) => {
-    if (!window.confirm(`Valider et activer le compte de ${aidant.user?.full_name || 'cet aidant'} ?`)) return;
+    if (!await confirmDialog({ title: `Valider et activer le compte de ${aidant.user?.full_name || 'cet aidant'} ?`, variant: 'default' })) return;
 
     setProcessingId(aidant.id);
     try {
@@ -230,7 +231,7 @@ const AidantsPage = () => {
 
   // ✅ DÉSASSIGNATION RÉACTIVE AVEC MISE À JOUR INSTANTANÉE EN DIRECT DANS LA MODALE
   const handleRevokeAssignmentFromModal = async (assignmentId: string, targetName: string) => {
-    if (!window.confirm(`Voulez-vous vraiment désassigner cet intervenant de ${targetName} ?`)) return;
+    if (!await confirmDialog({ title: `Voulez-vous vraiment désassigner cet intervenant de ${targetName} ?`, variant: 'danger' })) return;
 
     setProcessingId(assignmentId);
     try {

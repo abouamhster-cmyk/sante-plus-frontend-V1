@@ -21,6 +21,7 @@ import { formatDate, cn } from '@/utils/helpers';
 import { Modal } from '@/components/ui/Modal';
 import { AssignAidantModal } from '@/features/aidants/components/AssignAidantModal';
 import toast from 'react-hot-toast';
+import { confirmDialog } from '@/components/ui/ConfirmDialog';
 
 // ============================================================
 // TYPES
@@ -330,7 +331,7 @@ export const PatientsPage = () => {
 
   const handleRevoke = async (item: AssignmentItem) => {
     if (!item.assignmentId) return;
-    if (!window.confirm(`Retirer l'assignation de ${item.targetName} ?`)) return;
+    if (!await confirmDialog({ title: `Retirer l'assignation de ${item.targetName} ?`, variant: 'danger' })) return;
 
     setProcessingId(item.id);
     setIsProcessing(true);

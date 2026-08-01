@@ -11,6 +11,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { formatDate } from '@/utils/helpers';
 import { Modal } from '@/components/ui/Modal';
 import toast from 'react-hot-toast';
+import { confirmDialog } from '@/components/ui/ConfirmDialog';
+import { useNavigate } from 'react-router-dom';
 
 interface NotificationItem {
   id: string;
@@ -100,6 +102,7 @@ const getTargetBadgeLabel = (targetGroup: string, count: number, names: string[]
 };
 
 const AdminNotificationsPage = () => {
+  const navigate = useNavigate();
   const { profile, role } = useAuthStore();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [pendingVisits, setPendingVisits] = useState<PendingAidantVisit[]>([]);
@@ -308,7 +311,7 @@ const AdminNotificationsPage = () => {
 
   // ✅ SUPPRESSION GROUPÉE DE TOUTES LES NOTIFICATIONS DU MEME LOT
   const handleDeleteGroup = async (ids: string[]) => {
-    if (!window.confirm(`Supprimer cette diffusion (${ids.length} destinataire(s)) ?`)) return;
+    if (!await confirmDialog({ title: `Supprimer cette diffusion (${ids.length} destinataire(s)) ?`, variant: 'danger' })) return;
     try {
       const { error } = await supabase.from('notifications').delete().in('id', ids);
       if (error) throw error;
@@ -454,7 +457,7 @@ const AdminNotificationsPage = () => {
                     <p className="font-bold text-gray-800">{v.target_name || 'Patient'}</p>
                     <p className="text-[10px] text-gray-500">{formatDate(v.scheduled_date)} à {v.scheduled_time}</p>
                   </div>
-                  <button onClick={() => window.location.href = `/app/visits/${v.id}`} className="px-2.5 py-1 rounded-lg text-white font-bold text-[10px]" style={{ background: colors.primary }}>
+                  <button onClick={() => navigate(`/app/visits/${v.id}`)} className="px-2.5 py-1 rounded-lg text-white font-bold text-[10px]" style={{ background: colors.primary }}>
                     Assigner
                   </button>
                 </div>

@@ -9,6 +9,7 @@ import { formatCurrency } from '@/utils/helpers';
 import { ModalWithForm } from '@/components/ui/Modal';
 import { Offer } from '@/types';
 import toast from 'react-hot-toast';
+import { confirmDialog } from '@/components/ui/ConfirmDialog';
 
 const getCategoryLabel = (category: string) => {
   const labels: Record<string, string> = {
@@ -65,7 +66,7 @@ const OffersPage = () => {
   });
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Voulez-vous vraiment supprimer cette offre ?')) return;
+    if (!await confirmDialog({ title: 'Voulez-vous vraiment supprimer cette offre ?', variant: 'danger' })) return;
     try {
       const { error } = await supabase.from('offres').delete().eq('id', id);
       if (error) throw error;

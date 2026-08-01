@@ -1,7 +1,7 @@
 // 📁 src/components/auth/RoleGuard.tsx
 
 import { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { useBranding } from '@/hooks/useBranding';
 import { ShieldAlert } from 'lucide-react';
@@ -19,6 +19,7 @@ export const RoleGuard = ({
   fallbackPath = '/app',
   showMessage = true 
 }: RoleGuardProps) => {
+  const navigate = useNavigate();
   const { profile, isAuthenticated } = useAuthStore();
   const brand = useBranding();
   const colors = brand.colors;
@@ -56,7 +57,7 @@ export const RoleGuard = ({
             Votre rôle actuel : <strong>{profile.role}</strong>
           </p>
           <button
-            onClick={() => window.location.href = fallbackPath}
+            onClick={() => navigate(fallbackPath, { replace: true })}
             className="mt-4 px-6 py-2 rounded-xl text-white font-bold text-sm transition hover:opacity-90"
             style={{ background: colors.primary }}
           >

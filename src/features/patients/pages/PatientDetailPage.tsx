@@ -42,6 +42,7 @@ import { useRefreshableData } from '@/hooks/useRefreshableData';
 import { RefreshButton } from '@/components/ui/RefreshButton';
 import { supabase } from '@/lib/supabase';
 import toast from 'react-hot-toast';
+import { confirmDialog } from '@/components/ui/ConfirmDialog';
 
 const PatientDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -252,7 +253,7 @@ const PatientDetailPage = () => {
   };
 
   const handleCancel = async (visitId: string) => {
-    if (!window.confirm('Annuler cette visite ?')) return;
+    if (!await confirmDialog({ title: 'Annuler cette visite ?', variant: 'danger' })) return;
     try {
       await cancelVisit(visitId);
       toast.success('Visite annulée');
@@ -269,7 +270,7 @@ const PatientDetailPage = () => {
       toast.error('Vous n\'avez pas les droits pour supprimer un patient');
       return;
     }
-    if (window.confirm(confirmDelete)) {
+    if (await confirmDialog({ title: confirmDelete, variant: 'danger' })) {
       try {
         await deletePatient(id!);
         toast.success(deleted);

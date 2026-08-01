@@ -1,6 +1,6 @@
 // 📁 src/components/auth/ProtectedRoute.tsx
 
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { useContractStore } from '@/stores/contractStore';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -20,6 +20,7 @@ export const ProtectedRoute = ({
   allowedRoles = ['admin', 'coordinator', 'family', 'aidant'],
   redirectTo = '/login'
 }: ProtectedRouteProps) => {
+  const navigate = useNavigate();
   const location = useLocation();
   const brand = useBranding();
   const colors = brand.colors;
@@ -142,7 +143,7 @@ export const ProtectedRoute = ({
             Vous n'avez pas les droits nécessaires pour accéder à cette page.
           </p>
           <button
-            onClick={() => window.location.href = '/app'}
+            onClick={() => navigate('/app', { replace: true })}
             className="mt-4 px-6 py-2 rounded-xl text-white font-bold text-sm transition hover:opacity-90"
             style={{ background: colors.primary }}
           >

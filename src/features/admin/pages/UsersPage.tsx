@@ -25,6 +25,7 @@ import { useRefreshableData } from '@/hooks/useRefreshableData';
 import { RefreshButton } from '@/components/ui/RefreshButton';
 import { cn } from '@/utils/helpers';
 import toast from 'react-hot-toast';
+import { confirmDialog } from '@/components/ui/ConfirmDialog';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://app-react-back.onrender.com/api';
 
@@ -199,7 +200,7 @@ const UsersPage = () => {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) return;
+    if (!await confirmDialog({ title: 'Êtes-vous sûr de vouloir supprimer cet utilisateur ?', variant: 'danger' })) return;
 
     try {
       const { data: sessionData } = await supabase.auth.getSession();

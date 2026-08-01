@@ -7,6 +7,7 @@ import { useDischargeStore } from '@/stores/dischargeStore';
 import { useTerminology } from '@/hooks/useTerminology';
 import { formatDate, formatTime } from '@/utils/helpers';
 import toast from 'react-hot-toast';
+import { confirmDialog } from '@/components/ui/ConfirmDialog';
 
 interface DischargeDetailsModalContentProps {
   discharge: any;
@@ -82,7 +83,7 @@ export const DischargeDetailsModalContent = ({
   };
 
   const handleComplete = async () => {
-    if (!window.confirm('Confirmer la fin de la sortie ?')) return;
+    if (!await confirmDialog({ title: 'Confirmer la fin de la sortie ?', variant: 'default' })) return;
     setIsSubmitting(true);
     try {
       await completeDischarge(discharge.id, {
@@ -103,7 +104,7 @@ export const DischargeDetailsModalContent = ({
   const handleCancel = async () => {
     const reason = prompt('Motif de l\'annulation :');
     if (!reason) return;
-    if (!window.confirm('Confirmer l\'annulation ?')) return;
+    if (!await confirmDialog({ title: 'Confirmer l\'annulation ?', variant: 'danger' })) return;
     setIsSubmitting(true);
     try {
       await cancelDischarge(discharge.id, reason);

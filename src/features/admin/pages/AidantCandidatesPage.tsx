@@ -10,6 +10,7 @@ import { UserCheck, Check, X, Loader2, Eye, MapPin, Briefcase } from 'lucide-rea
 import { Modal } from '@/components/ui/Modal';
 import { CandidateDetailsModal } from '../components/CandidateDetailsModal';
 import toast from 'react-hot-toast';
+import { confirmDialog } from '@/components/ui/ConfirmDialog';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://app-react-back.onrender.com/api';
 
@@ -93,7 +94,7 @@ const AidantCandidatesPage = () => {
 
   const handleApprove = async (candidate: AidantCandidate) => {
     const name = candidate.user?.full_name || 'ce candidat';
-    if (!window.confirm(`Approuver ${name} ?`)) return;
+    if (!await confirmDialog({ title: `Approuver ${name} ?`, variant: 'default' })) return;
 
     setIsProcessing(true);
     try {
@@ -131,7 +132,7 @@ const AidantCandidatesPage = () => {
     const name = candidate.user?.full_name || 'ce candidat';
     const reason = prompt('Motif du refus :');
     if (reason === null) return;
-    if (!window.confirm(`Refuser ${name} ?`)) return;
+    if (!await confirmDialog({ title: `Refuser ${name} ?`, variant: 'danger' })) return;
 
     setIsProcessing(true);
     try {

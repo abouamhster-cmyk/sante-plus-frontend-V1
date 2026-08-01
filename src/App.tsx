@@ -7,6 +7,7 @@ import { Toaster } from 'react-hot-toast';
 
 import { ThemeProvider } from '@/components/theme/ThemeProvider';
 import { InstallPrompt } from '@/components/PWA/InstallPrompt';
+import { ConfirmDialogHost } from '@/components/ui/ConfirmDialog';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { RoleGuard } from '@/components/auth/RoleGuard';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -399,6 +400,11 @@ function App() {
         </Routes>
 
         <InstallPrompt />
+
+        {/* ✅ Hôte des dialogues de confirmation.
+            Remplace les 18 window.confirm() natifs par une modale aux
+            couleurs de la marque, cohérente sur mobile comme sur desktop. */}
+        <ConfirmDialogHost />
 
         {/* ============================================================
             ✅ CORRECTIF MAJEUR — Toaster
