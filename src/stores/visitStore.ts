@@ -69,12 +69,16 @@ interface VisitState {
   visits: Visit[];
   currentVisit: Visit | null;
   isLoading: boolean;
+  isLoadingMore: boolean;
   error: string | null;
   isInitialized: boolean;
   lastFetch: number | null;
   isCacheInvalidated: boolean;
+  total: number;
+  hasMore: boolean;
 
   fetchVisits: (force?: boolean) => Promise<void>;
+  loadMoreVisits: () => Promise<void>;
   fetchVisitById: (id: string) => Promise<void>;
   createVisit: (data: Partial<Visit> & {
     target_type?: 'personal' | 'patient';
@@ -118,14 +122,40 @@ export const useVisitStore = create<VisitState>((set, get) => ({
   visits: [],
   currentVisit: null,
   isLoading: false,
+  isLoadingMore: false,
   error: null,
   isInitialized: false,
   lastFetch: null,
   isCacheInvalidated: false,
+  total: 0,
+  hasMore: false,
 
   canManageVisits: () => {
     const { profile } = useAuthStore.getState();
     return profile?.role === 'admin' || profile?.role === 'coordinator';
+  },
+
+  loadMoreVisits: async () => {
+    const state = get();
+    if (!state.hasMore || state.isLoadingMore) return;
+
+    try {
+      set({ isLoadingMore: true });
+      const offset = state.visits.length;
+      const response = await api.get('/visits', { params: { limit: 20, offset } });
+      const newVisits = response.data || [];
+      const total = parseInt(response.headers['x-total-count'] || '0', 10);
+      const merged = [...state.visits, ...newVisits];
+
+      set({
+        visits: merged,
+        total,
+        hasMore: merged.length < total,
+        isLoadingMore: false,
+      });
+    } catch (error: any) {
+      set({ isLoadingMore: false });
+    }
   },
 
   invalidateCache: () => {
@@ -205,13 +235,16 @@ export const useVisitStore = create<VisitState>((set, get) => ({
         return;
       }
 
-      const response = await api.get('/visits');
+      const response = await api.get('/visits', { params: { limit: 20, offset: 0 } });
       const visitsData = response.data || [];
+      const total = parseInt(response.headers['x-total-count'] || '0', 10);
 
       setCachedVisits(visitsData);
       
       set({ 
-        visits: visitsData, 
+        visits: visitsData,
+        total,
+        hasMore: visitsData.length < total,
         isLoading: false,
         isInitialized: true,
         lastFetch: Date.now(),

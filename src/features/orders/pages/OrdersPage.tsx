@@ -36,7 +36,7 @@ const OrdersPage = () => {
   const { profile, role, user } = useAuthStore();
   const brand = useBranding();
   const colors = brand.colors;
-  const { orders, isLoading, fetchOrders, updateOrderStatus, takeOrder } = useOrderStore();
+  const { orders, isLoading, fetchOrders, updateOrderStatus, takeOrder, hasMore, isLoadingMore, loadMoreOrders, total } = useOrderStore();
 
   const { isFamily, isAidant, isAdminOrCoordinator } = useTerminology();
 
@@ -448,6 +448,28 @@ const OrdersPage = () => {
               />
             </div>
           ))}
+
+          {/* BOUTON CHARGER PLUS */}
+          {hasMore && (
+            <button
+              onClick={loadMoreOrders}
+              disabled={isLoadingMore}
+              className="w-full py-3.5 rounded-2xl text-sm font-bold border-2 transition-all hover:opacity-80 disabled:opacity-40 flex items-center justify-center gap-2"
+              style={{ borderColor: colors.primary, color: colors.primary }}
+            >
+              {isLoadingMore ? (
+                <>
+                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"/>
+                  </svg>
+                  Chargement…
+                </>
+              ) : (
+                `Charger plus · ${total - orders.length} restante${total - orders.length > 1 ? 's' : ''}`
+              )}
+            </button>
+          )}
         </section>
       ) : (
         <section className="bg-white/40 rounded-2xl py-16 px-6 text-center border max-w-sm mx-auto flex flex-col items-center justify-center gap-4 backdrop-blur-sm shadow-sm" style={{ borderColor: colors.primary + '15' }}>

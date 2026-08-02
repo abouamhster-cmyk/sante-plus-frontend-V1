@@ -50,12 +50,16 @@ interface OrderState {
   orders: Order[];
   currentOrder: Order | null;
   isLoading: boolean;
+  isLoadingMore: boolean;
   error: string | null;
   isInitialized: boolean;
   lastFetch: number | null;
   isCacheInvalidated: boolean;
-  
+  total: number;
+  hasMore: boolean;
+
   fetchOrders: (force?: boolean) => Promise<void>;
+  loadMoreOrders: () => Promise<void>;
   fetchOrderById: (id: string) => Promise<void>;
   createOrder: (data: any) => Promise<Order>;
   updateOrder: (id: string, data: Partial<Order>) => Promise<void>;
@@ -93,10 +97,13 @@ export const useOrderStore = create<OrderState>((set, get) => ({
   orders: [],
   currentOrder: null,
   isLoading: false,
+  isLoadingMore: false,
   error: null,
   isInitialized: false,
   lastFetch: null,
   isCacheInvalidated: false,
+  total: 0,
+  hasMore: false,
 
   canManageOrders: () => {
     const { profile } = useAuthStore.getState();
@@ -176,11 +183,14 @@ export const useOrderStore = create<OrderState>((set, get) => ({
 
     try {
       set({ isLoading: true, error: null });
-      const response = await api.get('/orders');
+      const response = await api.get('/orders', { params: { limit: 20, offset: 0 } });
       const ordersData = response.data || [];
+      const total = parseInt(response.headers['x-total-count'] || '0', 10);
 
       set({ 
-        orders: ordersData, 
+        orders: ordersData,
+        total,
+        hasMore: ordersData.length < total,
         isLoading: false,
         isInitialized: true,
         lastFetch: Date.now(),
@@ -188,6 +198,29 @@ export const useOrderStore = create<OrderState>((set, get) => ({
       });
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
+    }
+  },
+
+  loadMoreOrders: async () => {
+    const state = get();
+    if (!state.hasMore || state.isLoadingMore) return;
+
+    try {
+      set({ isLoadingMore: true });
+      const offset = state.orders.length;
+      const response = await api.get('/orders', { params: { limit: 20, offset } });
+      const newOrders = response.data || [];
+      const total = parseInt(response.headers['x-total-count'] || '0', 10);
+      const merged = [...state.orders, ...newOrders];
+
+      set({
+        orders: merged,
+        total,
+        hasMore: merged.length < total,
+        isLoadingMore: false,
+      });
+    } catch (error: any) {
+      set({ isLoadingMore: false });
     }
   },
 
