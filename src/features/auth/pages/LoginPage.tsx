@@ -1,44 +1,37 @@
 // 📁 src/features/auth/pages/LoginPage.tsx
- 
+
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Mail, Lock, ArrowRight } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { supabase } from '@/lib/supabase';
 import { Logo } from '@/components/ui/Logo';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { useBranding } from '@/hooks/useBranding';
 import toast from 'react-hot-toast';
 
-// ============================================================
-// TRADUCTION DES ERREURS SUPABASE
-// ============================================================
-// Supabase renvoie ses erreurs en anglais et dans un langage technique
-// (« Invalid login credentials »). Les afficher telles quelles est
-// incompréhensible pour un utilisateur francophone.
-// On les traduit en messages clairs et actionnables.
+// ─── Traduction des erreurs Supabase ────────────────────────
 const traduireErreurAuth = (message: string): string => {
   const m = (message || '').toLowerCase();
-
-  if (m.includes('invalid login credentials') || m.includes('invalid credentials')) {
+  if (m.includes('invalid login credentials') || m.includes('invalid credentials'))
     return 'E-mail ou mot de passe incorrect. Vérifiez vos identifiants.';
-  }
-  if (m.includes('email not confirmed')) {
+  if (m.includes('email not confirmed'))
     return "Votre adresse e-mail n'a pas encore été confirmée. Consultez votre boîte de réception.";
-  }
-  if (m.includes('too many requests') || m.includes('rate limit')) {
+  if (m.includes('too many requests') || m.includes('rate limit'))
     return 'Trop de tentatives. Patientez quelques minutes avant de réessayer.';
-  }
-  if (m.includes('user not found')) {
+  if (m.includes('user not found'))
     return "Aucun compte n'est associé à cette adresse e-mail.";
-  }
-  if (m.includes('network') || m.includes('fetch')) {
+  if (m.includes('network') || m.includes('fetch'))
     return 'Connexion au serveur impossible. Vérifiez votre connexion internet.';
-  }
-  if (m.includes('user is banned') || m.includes('disabled')) {
-    return 'Ce compte a été désactivé. Contactez l\'administration.';
-  }
+  if (m.includes('user is banned') || m.includes('disabled'))
+    return "Ce compte a été désactivé. Contactez l'administration.";
   return message || 'Une erreur est survenue. Veuillez réessayer.';
 };
+
+// ============================================================
+// PAGE
+// ============================================================
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -48,134 +41,54 @@ const LoginPage = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
-  const primaryColor = colors.primary;
-  const textColor = colors.text;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     const cleanEmail = email.trim().toLowerCase();
 
-    // Retours précis plutôt qu'un message générique :
-    // l'utilisateur sait immédiatement quel champ corriger.
-    if (!cleanEmail) {
-      toast.error('Veuillez saisir votre adresse e-mail');
-      return;
-    }
-    if (!password) {
-      toast.error('Veuillez saisir votre mot de passe');
-      return;
-    }
+    if (!cleanEmail) { toast.error('Veuillez saisir votre adresse e-mail'); return; }
+    if (!password)   { toast.error('Veuillez saisir votre mot de passe');   return; }
 
     setIsLoading(true);
-
     try {
-      console.log('🔐 Tentative de connexion pour:', cleanEmail);
+      const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
+      if (error)      { toast.error(traduireErreurAuth(error.message)); return; }
+      if (!data?.user) { toast.error('E-mail ou mot de passe incorrect');    return; }
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password,
-      });
-
-      if (error) {
-        console.error('❌ Erreur de connexion:', error);
-        toast.error(traduireErreurAuth(error.message));
-        setIsLoading(false);
-        return;
-      }
-
-      if (!data?.user) {
-        console.error('❌ Aucun utilisateur retourné');
-        toast.error('Email ou mot de passe incorrect');
-        setIsLoading(false);
-        return;
-      }
-
-      console.log('✅ Utilisateur connecté:', data.user.id);
-
-      // Récupérer le profil utilisateur associé
       const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .maybeSingle();
+        .from('profiles').select('*').eq('id', data.user.id).maybeSingle();
 
-      if (profileError) {
-        console.error('❌ Erreur récupération profil:', profileError);
-        toast.error('Erreur lors de la récupération du profil');
-        setIsLoading(false);
-        return;
-      }
+      if (profileError) { toast.error('Erreur lors de la récupération du profil'); return; }
 
-      // Si le profil n'existe pas encore, on le crée automatiquement en tant que Famille [24]
       if (!profile) {
-        console.log('📝 Création automatique du profil...');
-
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
-          .insert({
-            id: data.user.id,
-            full_name: data.user.user_metadata?.full_name || 'Utilisateur',
-            email: data.user.email,
-            phone: data.user.user_metadata?.phone || null,
-            role: 'family',
-            is_active: true,
-          })
-          .select('*')
-          .single();
-
-        if (createError) {
-          console.error('❌ Erreur création profil:', createError);
-          toast.error('Erreur lors de la création du profil');
-          setIsLoading(false);
-          return;
-        }
-
-        console.log('✅ Profil créé automatiquement:', newProfile);
-        
-        // Mettre en cache le thème vert par défaut
+          .insert({ id: data.user.id, full_name: data.user.user_metadata?.full_name || 'Utilisateur', email: data.user.email, phone: data.user.user_metadata?.phone || null, role: 'family', is_active: true })
+          .select('*').single();
+        if (createError) { toast.error('Erreur lors de la création du profil'); return; }
         localStorage.setItem('sante_plus_theme', 'senior');
-
         setUser(data.user, newProfile);
         toast.success('Bienvenue sur Santé Plus !');
         navigate('/app', { replace: true });
         return;
       }
 
-      // 🛑 Sécurité Aidant : Bloquer d'office la connexion si le compte intervenant n'est pas encore validé
       if (profile.role === 'aidant' && !profile.is_active) {
-        toast.error('⏳ Votre compte aidant est en attente de validation par l\'administration.');
+        toast.error("⏳ Votre compte aidant est en attente de validation par l'administration.");
         await supabase.auth.signOut();
-        setIsLoading(false);
         return;
       }
 
-      // ============================================================
-      // 🧠 ENREGISTREMENT STRATÉGIQUE DU THÈME EN MÉMOIRE PERSISTANTE [24]
-      // ============================================================
-      if (profile.role === 'family') {
-        if (profile.patient_category === 'maman_bebe') {
-          localStorage.setItem('sante_plus_theme', 'maman'); // Mémorise le Rose pour les prochaines connexions [24]
-        } else {
-          localStorage.setItem('sante_plus_theme', 'senior'); // Mémorise le Vert pour les seniors [24]
-        }
-      } else {
-        localStorage.setItem('sante_plus_theme', 'senior'); // Les aidants et admins se connectent en Vert par défaut [23, 24]
-      }
-
-      console.log('✅ Profil récupéré avec succès:', profile);
+      localStorage.setItem('sante_plus_theme',
+        profile.role === 'family' && profile.patient_category === 'maman_bebe' ? 'maman' : 'senior'
+      );
       setUser(data.user, profile);
-      // Salutation personnalisée : plus chaleureux et confirme
-      // clairement à l'utilisateur QUEL compte vient d'être ouvert.
       const prenom = (profile.full_name || '').split(' ')[0];
       toast.success(prenom ? `Bon retour, ${prenom} !` : 'Bienvenue !');
       navigate('/app', { replace: true });
 
     } catch (error: any) {
-      console.error('❌ Erreur inattendue:', error);
       toast.error(error.message || 'Une erreur est survenue');
     } finally {
       setIsLoading(false);
@@ -184,151 +97,98 @@ const LoginPage = () => {
 
   return (
     <div
-      className="min-h-screen w-full flex items-center justify-center p-3 animate-fadeIn"
+      className="min-h-screen w-full flex items-center justify-center p-4"
       style={{ background: colors.background }}
     >
-      <div className="w-full max-w-md">
-        <div
-          className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border relative"
-          style={{ borderColor: colors.primary + '20' }}
-        >
-          {/* Logo flottant unifié */}
-          <div className="absolute -top-8 left-1/2 -translate-x-1/2">
-            <div
-              className="w-14 h-14 rounded-xl bg-white shadow-sm border flex items-center justify-center"
-              style={{ borderColor: primaryColor }}
-            >
-              <Logo
-                size="sm"
-                showText={false}
-                whiteBg={false}
-                className="justify-center"
-              />
-            </div>
+      <div className="w-full max-w-sm">
+
+        {/* Logo + nom centré au-dessus de la carte */}
+        <div className="flex flex-col items-center mb-6 gap-3">
+          <div
+            className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-md"
+            style={{ background: colors.gradient }}
+          >
+            <Logo size="sm" showText={false} whiteBg={false} />
           </div>
-
-          <div className="h-8" />
-
-          {/* En-tête */}
-          <div className="text-center mb-4">
-            <h1
-              className="text-lg font-extrabold"
-              style={{ color: textColor }}
-            >
+          <div className="text-center">
+            <h1 className="text-base font-extrabold" style={{ color: colors.text }}>
               Santé Plus Services
             </h1>
-            <p
-              className="text-[11px] mt-0.5"
-              style={{ color: colors.textLight }}
-            >
-              Accompagnement de confiance & coordination à domicile
+            <p className="text-[11px] mt-0.5" style={{ color: colors.textLight }}>
+              Coordination de soins à domicile
             </p>
           </div>
+        </div>
 
-          {/* Formulaire */}
+        {/* Carte formulaire */}
+        <div
+          className="rounded-2xl p-6 shadow-sm border"
+          style={{ backgroundColor: colors.surface, borderColor: colors.border + '60' }}
+        >
+          <p className="text-sm font-extrabold mb-4" style={{ color: colors.text }}>
+            Connexion à votre espace
+          </p>
+
           <form onSubmit={handleSubmit} className="space-y-3">
-            <div>
-              <label
-                className="block text-[11px] font-semibold mb-0.5"
-                style={{ color: textColor }}
-              >
-                Adresse e-mail
-              </label>
-              <div className="relative">
-                <Mail
-                  className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5"
-                  style={{ color: colors.textLight }}
-                />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-8 pr-3 h-10 rounded-xl border outline-none text-xs"
-                  style={{
-                    borderColor: colors.primary + '25',
-                    background: colors.background,
-                    color: textColor,
-                  }}
-                  placeholder="exemple@email.com"
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
+            <Input
+              label="Adresse e-mail"
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="exemple@email.com"
+              iconLeft={<Mail size={13} />}
+              autoComplete="email"
+              disabled={isLoading}
+              required
+            />
 
-            <div>
-              <label
-                className="block text-[11px] font-semibold mb-0.5"
-                style={{ color: textColor }}
-              >
-                Mot de passe
-              </label>
-              <div className="relative">
-                <Lock
-                  className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5"
-                  style={{ color: colors.textLight }}
-                />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-8 pr-8 h-10 rounded-xl border outline-none text-xs"
-                  style={{
-                    borderColor: colors.primary + '25',
-                    background: colors.background,
-                    color: textColor,
-                  }}
-                  placeholder="••••••••"
-                  disabled={isLoading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2"
-                  style={{ color: colors.textLight }}
-                  disabled={isLoading}
-                >
-                  {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                </button>
-              </div>
-            </div>
+            <Input
+              label="Mot de passe"
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••"
+              iconLeft={<Lock size={13} />}
+              autoComplete="current-password"
+              disabled={isLoading}
+              required
+            />
 
-            <div className="text-right">
+            <div className="text-right -mt-1">
               <Link
                 to="/forgot-password"
-                className="text-[11px] font-medium hover:underline"
-                style={{ color: primaryColor }}
+                className="text-[11px] font-semibold hover:underline"
+                style={{ color: colors.primary }}
               >
                 Mot de passe oublié ?
               </Link>
             </div>
 
-            <button
+            <Button
               type="submit"
-              className="w-full h-11 rounded-xl text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm hover:opacity-95 disabled:opacity-75"
-              style={{ background: primaryColor }}
-              disabled={isLoading}
+              variant="primary"
+              size="lg"
+              fullWidth
+              isLoading={isLoading}
+              iconRight={!isLoading ? <ArrowRight size={15} /> : undefined}
             >
-              {isLoading ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <>
-                  <span>Se connecter</span>
-                  <ArrowRight size={14} />
-                </>
-              )}
-            </button>
+              Se connecter
+            </Button>
           </form>
 
-          {/* Lien d'inscription */}
-          <div className="mt-4 text-center text-[11px]">
+          {/* Lien inscription */}
+          <div
+            className="mt-4 pt-4 text-center text-[11px] border-t"
+            style={{ borderColor: colors.border + '40' }}
+          >
             <p style={{ color: colors.textLight }}>
-              Nouveau ?{' '}
+              Nouveau sur Santé Plus ?{' '}
               <Link
                 to="/register"
                 className="font-bold hover:underline"
-                style={{ color: primaryColor }}
+                style={{ color: colors.primary }}
               >
-                S'inscrire
+                Créer un compte
               </Link>
             </p>
           </div>

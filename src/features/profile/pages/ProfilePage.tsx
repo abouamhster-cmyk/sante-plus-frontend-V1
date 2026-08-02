@@ -1,160 +1,120 @@
 // 📁 src/features/profile/pages/ProfilePage.tsx
- 
+
 import { useState, useEffect } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Mail, Phone, Camera, LogOut, Lock, Bell, Trash2, X,
-  AlertCircle, ShieldCheck, User, Key, Loader2, ChevronRight
+  Mail, Phone, Camera, LogOut, Lock, Bell, Trash2,
+  AlertCircle, ShieldCheck, User, Key, ChevronRight,
 } from 'lucide-react';
 
-import { useAuthStore } from '@/stores/authStore';
-import { usePatientStore } from '@/stores/patientStore';
-import { useVisitStore } from '@/stores/visitStore';
-import { useOrderStore } from '@/stores/orderStore';
+import { useAuthStore }         from '@/stores/authStore';
+import { usePatientStore }      from '@/stores/patientStore';
+import { useVisitStore }        from '@/stores/visitStore';
+import { useOrderStore }        from '@/stores/orderStore';
 import { useNotificationStore } from '@/stores/notificationStore';
-import { useBranding } from '@/hooks/useBranding';
-import { supabase } from '@/lib/supabase';
-import toast from 'react-hot-toast';
+import { useBranding }          from '@/hooks/useBranding';
+import { supabase }             from '@/lib/supabase';
+import toast                    from 'react-hot-toast';
 
-const getInitials = (name: string): string => {
-  if (!name) return 'U';
-  return name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
-};
+import { Button, DangerButton }        from '@/components/ui/Button';
+import { Input }                        from '@/components/ui/Input';
+import { Card, CardDivider }            from '@/components/ui/Card';
+import { SectionTitle }                 from '@/components/ui/PageHeader';
+import { DataRow }                      from '@/components/ui/Divider';
+import { Modal, ModalActions }          from '@/components/ui/Modal';
 
-const sanitizeFileName = (name: string): string => {
-  return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9.-]/g, '_');
-};
+// ─── Helpers ─────────────────────────────────────────────────
+const getInitials = (name: string) =>
+  name ? name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : 'U';
+
+const sanitizeFileName = (name: string) =>
+  name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9.-]/g, '_');
+
+// ============================================================
+// PAGE
+// ============================================================
 
 const ProfilePage = () => {
-  const navigate = useNavigate();
-  const brand = useBranding();
-  const colors = brand.colors;
+  const navigate     = useNavigate();
+  const brand        = useBranding();
+  const colors       = brand.colors;
 
   const { profile, role, logout, updateProfile, refreshProfile } = useAuthStore();
 
-  // ✅ Déconnexion propre et cohérente avec MainLayout :
-  //  - on ATTEND la fin de logout() avant de naviguer (sinon on quitte la page
-  //    pendant que la session s'invalide encore) ;
-  //  - `replace: true` empêche de revenir en arrière sur une page protégée ;
-  //  - un retour visuel confirme l'action, comme partout ailleurs dans l'app.
   const handleLogout = async () => {
-    const toastId = toast.loading('Déconnexion...');
-    try {
-      await logout();
-      toast.success('À bientôt !', { id: toastId });
-    } catch {
-      // Même en cas d'échec réseau, la session locale est vidée :
-      // on redirige plutôt que de laisser l'utilisateur bloqué.
-      toast.dismiss(toastId);
-    } finally {
-      navigate('/login', { replace: true });
-    }
+    const id = toast.loading('Déconnexion...');
+    try { await logout(); toast.success('À bientôt !', { id }); }
+    catch { toast.dismiss(id); }
+    finally { navigate('/login', { replace: true }); }
   };
-  const { patients, fetchPatients } = usePatientStore();
-  const { visits, fetchVisits } = useVisitStore();
-  const { orders, fetchOrders } = useOrderStore();
-  const toggleNotifications = useNotificationStore((state) => state.toggleNotifications);
-  const notificationsEnabled = useNotificationStore((state) => state.notificationsEnabled);
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const { patients, fetchPatients }    = usePatientStore();
+  const { visits,   fetchVisits }      = useVisitStore();
+  const { orders,   fetchOrders }      = useOrderStore();
+  const toggleNotifications            = useNotificationStore(s => s.toggleNotifications);
+  const notificationsEnabled           = useNotificationStore(s => s.notificationsEnabled);
+
+  const [isEditing, setIsEditing]             = useState(false);
+  const [isLoading, setIsLoading]             = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [showDeleteModal,   setShowDeleteModal]   = useState(false);
+  const [avatarFile,   setAvatarFile]   = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [imageError, setImageError] = useState(false);
+  const [imageError,   setImageError]   = useState(false);
 
   const [formData, setFormData] = useState({
-    full_name: '',
-    phone: '',
-    email: '',
-    notifications: true,
+    full_name: '', phone: '', email: '', notifications: true,
   });
-
   const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
+    currentPassword: '', newPassword: '', confirmPassword: '',
   });
 
   useEffect(() => {
-    fetchPatients();
-    fetchVisits();
-    fetchOrders();
-    setFormData((prev) => ({
-      ...prev,
-      notifications: notificationsEnabled,
-    }));
+    fetchPatients(); fetchVisits(); fetchOrders();
+    setFormData(p => ({ ...p, notifications: notificationsEnabled }));
   }, [fetchPatients, fetchVisits, fetchOrders, notificationsEnabled]);
 
   useEffect(() => {
     if (!profile) return;
-    setFormData((prev) => ({
-      ...prev,
-      full_name: profile.full_name || '',
-      phone: profile.phone || '',
-      email: profile.email || '',
-    }));
+    setFormData(p => ({ ...p, full_name: profile.full_name || '', phone: profile.phone || '', email: profile.email || '' }));
     setAvatarPreview(profile.avatar_url || null);
     setImageError(false);
   }, [profile]);
 
-  const handleToggleNotifications = () => {
-    const nextNotif = !formData.notifications;
-    setFormData((prev) => ({ ...prev, notifications: nextNotif }));
-    toggleNotifications?.();
-    toast.success(nextNotif ? 'Notifications activées' : 'Notifications désactivées');
-  };
+  // ─── Handlers ───────────────────────────────────────────────
 
   const handleSaveProfile = async () => {
     if (!formData.full_name.trim()) return toast.error('Le nom est obligatoire');
     if (!profile?.id) return toast.error('Profil introuvable');
-
     setIsLoading(true);
     try {
       let avatarUrl = profile.avatar_url || null;
-
       if (avatarFile) {
         const cleanName = sanitizeFileName(avatarFile.name);
-        const fileExt = cleanName.split('.').pop() || 'png';
-        const fileName = `${profile.id}/${Date.now()}.${fileExt}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('avatars')
-          .upload(fileName, avatarFile, { upsert: true, contentType: avatarFile.type });
-
+        const fileExt   = cleanName.split('.').pop() || 'png';
+        const fileName  = `${profile.id}/${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, avatarFile, { upsert: true, contentType: avatarFile.type });
         if (uploadError) throw new Error(uploadError.message);
-
         avatarUrl = `${supabase.storage.from('avatars').getPublicUrl(fileName).data.publicUrl}?v=${Date.now()}`;
       }
-
-      await updateProfile({
-        full_name: formData.full_name.trim(),
-        phone: formData.phone.trim(),
-        avatar_url: avatarUrl,
-      });
-
-      setAvatarPreview(avatarUrl);
-      setAvatarFile(null);
-      setIsEditing(false);
+      await updateProfile({ full_name: formData.full_name.trim(), phone: formData.phone.trim(), avatar_url: avatarUrl });
+      setAvatarPreview(avatarUrl); setAvatarFile(null); setIsEditing(false);
       if (refreshProfile) await refreshProfile();
       toast.success('Profil mis à jour');
     } catch (error: any) {
       toast.error(error?.message || 'Erreur lors de la mise à jour');
-    } finally {
-      setIsLoading(false);
-    }
+    } finally { setIsLoading(false); }
   };
 
   const handleAvatarChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) return toast.error('Veuillez sélectionner une image');
-    if (file.size > 5 * 1024 * 1024) return toast.error("L'image ne doit pas dépasser 5MB");
+    if (file.size > 5 * 1024 * 1024) return toast.error("L'image ne doit pas dépasser 5 Mo");
     setAvatarFile(file);
     const reader = new FileReader();
-    reader.onload = (event) => setAvatarPreview(event.target?.result as string);
+    reader.onload = ev => setAvatarPreview(ev.target?.result as string);
     reader.readAsDataURL(file);
   };
 
@@ -162,30 +122,21 @@ const ProfilePage = () => {
     e.preventDefault();
     if (!passwordData.currentPassword) return toast.error('Mot de passe actuel requis');
     if (passwordData.newPassword !== passwordData.confirmPassword) return toast.error('Les mots de passe ne correspondent pas');
-    if (passwordData.newPassword.length < 6) return toast.error('Minimum 6 caractères');
-
+    if (passwordData.newPassword.length < 6) return toast.error('Minimum 6 caractères requis');
     setIsLoading(true);
     try {
       const { user } = useAuthStore.getState();
       if (!user) throw new Error('Utilisateur non connecté');
-
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.email!,
-        password: passwordData.currentPassword,
-      });
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email: user.email!, password: passwordData.currentPassword });
       if (signInError) return toast.error('Mot de passe actuel incorrect');
-
       const { error } = await supabase.auth.updateUser({ password: passwordData.newPassword });
       if (error) throw error;
-
       toast.success('Mot de passe mis à jour');
       setShowPasswordModal(false);
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (error: any) {
       toast.error(error?.message || 'Erreur lors du changement de mot de passe');
-    } finally {
-      setIsLoading(false);
-    }
+    } finally { setIsLoading(false); }
   };
 
   const handleDeleteAccount = async () => {
@@ -193,27 +144,19 @@ const ProfilePage = () => {
     try {
       const { user } = useAuthStore.getState();
       if (!user) throw new Error('Utilisateur non trouvé');
-
       const { data: links } = await supabase.from('patient_family_links').select('patient_id').eq('family_id', user.id);
-      const patientIds = links?.map((l) => l.patient_id) || [];
-
-      if (patientIds.length > 0) {
-        await supabase.from('patients').delete().in('id', patientIds);
-      }
-
+      const patientIds = links?.map(l => l.patient_id) || [];
+      if (patientIds.length > 0) await supabase.from('patients').delete().in('id', patientIds);
       await supabase.from('patient_family_links').delete().eq('family_id', user.id);
       await supabase.from('inscriptions').delete().eq('user_id', user.id);
       await supabase.from('notifications').delete().eq('user_id', user.id);
       await supabase.from('profiles').delete().eq('id', user.id);
-
       await supabase.auth.signOut();
-      toast.success('Compte supprimé avec succès');
+      toast.success('Compte supprimé');
       navigate('/login');
     } catch (error: any) {
       toast.error(error?.message || 'Erreur lors de la suppression');
-    } finally {
-      setIsLoading(false);
-    }
+    } finally { setIsLoading(false); }
   };
 
   const getRoleLabel = () => {
@@ -223,172 +166,245 @@ const ProfilePage = () => {
     return 'Famille';
   };
 
+  // ─── Render ─────────────────────────────────────────────────
+
   return (
-    <div className="max-w-2xl mx-auto space-y-5 pb-20 p-3 sm:p-4">
-      {/* CARTE EN-TÊTE PROFIL */}
-      <section className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border" style={{ borderColor: `${colors.primary}25` }}>
+    <div className="max-w-2xl mx-auto space-y-4 pb-20 px-3 sm:px-0">
+
+      {/* ── EN-TÊTE AVATAR + STATS ─────────────────────────── */}
+      <Card padding="lg">
         <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+          {/* Avatar */}
           <div className="relative mx-auto sm:mx-0">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl flex items-center justify-center text-2xl font-black text-white overflow-hidden shadow-sm" style={{ backgroundColor: colors.primary }}>
+            <div
+              className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl flex items-center justify-center text-2xl font-black text-white overflow-hidden shadow-sm"
+              style={{ backgroundColor: colors.primary }}
+            >
               {avatarPreview && !imageError ? (
                 <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" onError={() => setImageError(true)} />
-              ) : (
-                getInitials(profile?.full_name || '')
-              )}
+              ) : getInitials(profile?.full_name || '')}
             </div>
             {isEditing && (
-              <label className="absolute -bottom-1 -right-1 w-8 h-8 rounded-2xl bg-white shadow-md flex items-center justify-center cursor-pointer border hover:scale-105 transition" style={{ color: colors.primary }}>
+              <label
+                className="absolute -bottom-1 -right-1 w-8 h-8 rounded-2xl bg-white shadow-md flex items-center justify-center cursor-pointer border hover:scale-105 transition"
+                style={{ color: colors.primary, borderColor: colors.border }}
+              >
                 <Camera size={15} />
                 <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
               </label>
             )}
           </div>
 
+          {/* Infos */}
           <div className="flex-1 text-center sm:text-left min-w-0">
-            <h1 className="text-xl sm:text-2xl font-extrabold truncate" style={{ color: colors.text }}>
+            <h1 className="text-xl font-extrabold truncate" style={{ color: colors.text }}>
               {profile?.full_name || 'Utilisateur'}
             </h1>
-            <p className="text-xs font-bold uppercase tracking-wider flex items-center justify-center sm:justify-start gap-1 mt-1 text-gray-500">
-              <ShieldCheck size={14} /> {getRoleLabel()}
+            <p className="text-[11px] font-bold uppercase tracking-wider flex items-center justify-center sm:justify-start gap-1 mt-1" style={{ color: colors.textLight }}>
+              <ShieldCheck size={12} /> {getRoleLabel()}
             </p>
-            <div className="flex flex-wrap justify-center sm:justify-start gap-3 mt-2 text-xs text-gray-500">
-              <span className="flex items-center gap-1"><Mail size={13} /> {profile?.email || '-'}</span>
-              <span className="flex items-center gap-1"><Phone size={13} /> {profile?.phone || 'Non renseigné'}</span>
+            <div className="flex flex-wrap justify-center sm:justify-start gap-3 mt-1.5" style={{ color: colors.textLight }}>
+              <span className="text-[11px] flex items-center gap-1"><Mail size={11} /> {profile?.email || '—'}</span>
+              {profile?.phone && <span className="text-[11px] flex items-center gap-1"><Phone size={11} /> {profile.phone}</span>}
             </div>
           </div>
 
-          <button onClick={() => setIsEditing(!isEditing)} className="px-4 py-2 rounded-2xl text-xs font-bold border hover:bg-gray-50 transition shrink-0">
+          <Button
+            variant={isEditing ? 'ghost' : 'outline'}
+            size="sm"
+            onClick={() => setIsEditing(!isEditing)}
+          >
             {isEditing ? 'Annuler' : 'Modifier'}
-          </button>
+          </Button>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 mt-5 pt-4 border-t text-center">
-          <div>
-            <span className="text-xs font-bold text-gray-400 block">Proches</span>
-            <span className="text-base font-black" style={{ color: colors.primary }}>{patients.length}</span>
-          </div>
-          <div>
-            <span className="text-xs font-bold text-gray-400 block">Visites</span>
-            <span className="text-base font-black" style={{ color: colors.primary }}>{visits.length}</span>
-          </div>
-          <div>
-            <span className="text-xs font-bold text-gray-400 block">Commandes</span>
-            <span className="text-base font-black" style={{ color: colors.primary }}>{orders.length}</span>
-          </div>
+        {/* Stats mini */}
+        <CardDivider className="mt-4" />
+        <div className="grid grid-cols-3 gap-2 text-center">
+          {[
+            { label: 'Proches',   value: patients.length },
+            { label: 'Visites',   value: visits.length },
+            { label: 'Commandes', value: orders.length },
+          ].map(stat => (
+            <div key={stat.label}>
+              <span className="text-[11px] font-semibold block" style={{ color: colors.textLight }}>{stat.label}</span>
+              <span className="text-base font-extrabold" style={{ color: colors.primary }}>{stat.value}</span>
+            </div>
+          ))}
         </div>
-      </section>
+      </Card>
 
-      {/* EDITEUR PROFIL */}
+      {/* ── ÉDITEUR ────────────────────────────────────────── */}
       {isEditing && (
-        <section className="bg-white rounded-3xl p-5 border shadow-sm space-y-3">
-          <h3 className="text-xs font-bold uppercase text-gray-400">Editer mes coordonnées</h3>
-          <input value={formData.full_name} onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} className="w-full p-3 rounded-2xl border text-xs font-bold bg-gray-50 outline-none" placeholder="Nom complet" />
-          <input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="w-full p-3 rounded-2xl border text-xs font-bold bg-gray-50 outline-none" placeholder="Téléphone" />
-          <button onClick={handleSaveProfile} disabled={isLoading} className="w-full py-3 rounded-2xl text-white font-bold text-xs flex justify-center items-center gap-2" style={{ backgroundColor: colors.primary }}>
-            {isLoading && <Loader2 className="animate-spin" size={14} />} Enregistrer
-          </button>
-        </section>
+        <Card padding="md">
+          <SectionTitle className="mb-3">
+            <User size={12} className="inline mr-1" />
+            Modifier mes coordonnées
+          </SectionTitle>
+          <div className="space-y-3">
+            <Input
+              label="Nom complet"
+              value={formData.full_name}
+              onChange={e => setFormData({ ...formData, full_name: e.target.value })}
+              placeholder="Votre nom complet"
+              iconLeft={<User size={13} />}
+              required
+            />
+            <Input
+              label="Téléphone"
+              type="tel"
+              value={formData.phone}
+              onChange={e => setFormData({ ...formData, phone: e.target.value })}
+              placeholder="+229 00 00 00 00"
+              iconLeft={<Phone size={13} />}
+            />
+            <Button
+              variant="primary"
+              size="md"
+              fullWidth
+              isLoading={isLoading}
+              onClick={handleSaveProfile}
+            >
+              Enregistrer les modifications
+            </Button>
+          </div>
+        </Card>
       )}
 
-      {/* SECTION UNIFIÉE : INFORMATIONS, PRÉFÉRENCES ET SÉCURITÉ */}
-      <section className="bg-white rounded-3xl p-5 sm:p-6 border shadow-sm space-y-6">
-        
-        {/* Partie 1 : Informations */}
-        <div>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-1.5">
-            <User size={14} /> Informations du compte
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            <div className="p-3 bg-gray-50 rounded-2xl">
-              <span className="text-gray-400 block font-bold">Inscrit le</span>
-              <span className="font-bold text-gray-800">{profile?.created_at ? new Date(profile.created_at).toLocaleDateString('fr-FR') : '-'}</span>
-            </div>
-            <div className="p-3 bg-gray-50 rounded-2xl">
-              <span className="text-gray-400 block font-bold">Statut du compte</span>
-              <span className="font-bold text-emerald-600">Actif 🟢</span>
-            </div>
-          </div>
+      {/* ── INFORMATIONS + PRÉFÉRENCES + SÉCURITÉ ─────────── */}
+      <Card padding="md">
+
+        {/* Informations */}
+        <SectionTitle><User size={12} className="inline mr-1.5" />Informations du compte</SectionTitle>
+        <div className="space-y-1 mt-2">
+          <DataRow label="Inscrit le" value={profile?.created_at ? new Date(profile.created_at).toLocaleDateString('fr-FR') : '—'} />
+          <DataRow label="Statut" value={<span className="text-emerald-600 font-bold">Actif ●</span>} />
+          <DataRow label="Rôle" value={getRoleLabel()} />
         </div>
 
-        {/* Partie 2 : Préférences */}
-        <div className="pt-4 border-t">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-1.5">
-            <Bell size={14} /> Préférences
-          </h3>
-          <button onClick={handleToggleNotifications} className="w-full flex items-center justify-between p-3.5 border rounded-2xl hover:bg-gray-50 transition">
-            <div className="flex items-center gap-3">
-              <Bell size={16} />
-              <span className="text-xs font-bold">Notifications Push</span>
+        <CardDivider />
+
+        {/* Préférences */}
+        <SectionTitle><Bell size={12} className="inline mr-1.5" />Préférences</SectionTitle>
+        <button
+          onClick={() => { toggleNotifications?.(); setFormData(p => ({ ...p, notifications: !p.notifications })); toast.success(!formData.notifications ? 'Notifications activées' : 'Notifications désactivées'); }}
+          className="w-full flex items-center justify-between p-3.5 border rounded-2xl hover:bg-black/[0.02] transition mt-2"
+          style={{ borderColor: colors.border + '60' }}
+        >
+          <div className="flex items-center gap-3" style={{ color: colors.text }}>
+            <Bell size={15} />
+            <span className="text-xs font-bold">Notifications Push</span>
+          </div>
+          <span
+            className="text-[10px] font-bold px-2.5 py-1 rounded-full"
+            style={formData.notifications
+              ? { background: '#dcfce7', color: '#16a34a' }
+              : { background: colors.border + '40', color: colors.textLight }}
+          >
+            {formData.notifications ? 'Activées' : 'Désactivées'}
+          </span>
+        </button>
+
+        <CardDivider />
+
+        {/* Sécurité */}
+        <SectionTitle><Lock size={12} className="inline mr-1.5" />Sécurité & Accès</SectionTitle>
+        <div className="space-y-2 mt-2">
+          <button
+            onClick={() => setShowPasswordModal(true)}
+            className="w-full flex items-center justify-between p-3.5 border rounded-2xl hover:bg-black/[0.02] transition"
+            style={{ borderColor: colors.border + '60', color: colors.text }}
+          >
+            <div className="flex items-center gap-3 text-xs font-bold">
+              <Key size={15} /> Changer le mot de passe
             </div>
-            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${formData.notifications ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600'}`}>
-              {formData.notifications ? 'Activées' : 'Désactivées'}
-            </span>
+            <ChevronRight size={15} style={{ color: colors.textLight }} />
+          </button>
+
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            className="w-full flex items-center justify-between p-3.5 border rounded-2xl transition text-xs font-bold"
+            style={{ borderColor: '#fecaca', background: '#fef2f2', color: '#dc2626' }}
+          >
+            <div className="flex items-center gap-3">
+              <Trash2 size={15} /> Supprimer définitivement le compte
+            </div>
           </button>
         </div>
+      </Card>
 
-        {/* Partie 3 : Sécurité */}
-        <div className="pt-4 border-t">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-1.5">
-            <Lock size={14} /> Sécurité & Accès
-          </h3>
-          <div className="space-y-3">
-            <button onClick={() => setShowPasswordModal(true)} className="w-full flex items-center justify-between p-3.5 border rounded-2xl hover:bg-gray-50 transition text-xs font-bold">
-              <div className="flex items-center gap-3">
-                <Key size={16} />
-                <span>Changer le mot de passe</span>
-              </div>
-              <ChevronRight size={16} className="text-gray-400" />
-            </button>
-
-            <button onClick={() => setShowDeleteModal(true)} className="w-full flex items-center justify-between p-3.5 border border-red-200 bg-red-50 text-red-600 rounded-2xl transition text-xs font-bold">
-              <div className="flex items-center gap-3">
-                <Trash2 size={16} />
-                <span>Supprimer définitivement le compte</span>
-              </div>
-            </button>
-          </div>
-        </div>
-
-      </section>
-
-      {/* BOUTON DÉCONNEXION */}
-      <button onClick={handleLogout} className="w-full py-4 rounded-3xl border border-red-100 text-red-500 font-bold text-xs flex justify-center items-center gap-2 hover:bg-red-50 transition">
-        <LogOut size={16} /> Se déconnecter
+      {/* ── DÉCONNEXION ────────────────────────────────────── */}
+      <button
+        onClick={handleLogout}
+        className="w-full py-4 rounded-2xl border text-xs font-bold flex justify-center items-center gap-2 transition hover:bg-red-50"
+        style={{ borderColor: '#fecaca', color: '#ef4444' }}
+      >
+        <LogOut size={15} /> Se déconnecter
       </button>
 
-      {/* MODALE MOT DE PASSE */}
-      {showPasswordModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <form onSubmit={handleChangePassword} className="bg-white rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl">
-            <div className="flex justify-between items-center">
-              <h3 className="font-bold text-sm">Mot de passe</h3>
-              <button type="button" onClick={() => setShowPasswordModal(false)}><X size={16} /></button>
-            </div>
-            <input type="password" placeholder="Mot de passe actuel" value={passwordData.currentPassword} onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })} className="w-full p-3 rounded-xl border text-xs font-bold bg-gray-50 outline-none" required />
-            <input type="password" placeholder="Nouveau mot de passe" value={passwordData.newPassword} onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })} className="w-full p-3 rounded-xl border text-xs font-bold bg-gray-50 outline-none" required minLength={6} />
-            <input type="password" placeholder="Confirmer le mot de passe" value={passwordData.confirmPassword} onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })} className="w-full p-3 rounded-xl border text-xs font-bold bg-gray-50 outline-none" required />
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setShowPasswordModal(false)} className="flex-1 py-2.5 rounded-xl border text-xs font-bold">Annuler</button>
-              <button type="submit" disabled={isLoading} className="flex-1 py-2.5 rounded-xl text-white font-bold text-xs" style={{ backgroundColor: colors.primary }}>{isLoading ? 'Changement...' : 'Changer'}</button>
-            </div>
-          </form>
-        </div>
-      )}
+      {/* ── MODALE MOT DE PASSE ────────────────────────────── */}
+      <Modal
+        isOpen={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        title="Changer le mot de passe"
+        icon={<Key size={18} />}
+        maxWidth="sm"
+        actions={
+          <ModalActions>
+            <Button variant="ghost" size="sm" onClick={() => setShowPasswordModal(false)}>Annuler</Button>
+            <Button variant="primary" size="sm" type="submit" form="password-form" isLoading={isLoading}>Changer</Button>
+          </ModalActions>
+        }
+      >
+        <form id="password-form" onSubmit={handleChangePassword} className="space-y-3">
+          <Input
+            label="Mot de passe actuel"
+            type="password"
+            value={passwordData.currentPassword}
+            onChange={e => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+            placeholder="••••••••"
+            required
+          />
+          <Input
+            label="Nouveau mot de passe"
+            type="password"
+            value={passwordData.newPassword}
+            onChange={e => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+            placeholder="6 caractères minimum"
+            helper="Au moins 6 caractères"
+            required
+          />
+          <Input
+            label="Confirmer le nouveau mot de passe"
+            type="password"
+            value={passwordData.confirmPassword}
+            onChange={e => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+            placeholder="••••••••"
+            required
+          />
+        </form>
+      </Modal>
 
-      {/* MODALE SUPPRESSION */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl w-full max-w-sm p-6 space-y-4 text-center shadow-2xl">
-            <AlertCircle size={32} className="mx-auto text-red-500" />
-            <h3 className="font-black text-sm text-gray-800">Confirmer la suppression ?</h3>
-            <p className="text-xs text-gray-500">Cette action supprimera irréversiblement votre profil et toutes vos données Supabase.</p>
-            <div className="flex gap-2">
-              <button onClick={() => setShowDeleteModal(false)} className="flex-1 py-2.5 rounded-xl border text-xs font-bold">Annuler</button>
-              <button onClick={handleDeleteAccount} disabled={isLoading} className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-xs font-bold">{isLoading ? 'Suppression...' : 'Supprimer'}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── MODALE SUPPRESSION ─────────────────────────────── */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Supprimer le compte ?"
+        icon={<AlertCircle size={18} />}
+        maxWidth="sm"
+        actions={
+          <ModalActions>
+            <Button variant="ghost" size="sm" onClick={() => setShowDeleteModal(false)}>Annuler</Button>
+            <DangerButton size="sm" isLoading={isLoading} onClick={handleDeleteAccount}>
+              Supprimer définitivement
+            </DangerButton>
+          </ModalActions>
+        }
+      >
+        <p className="text-sm leading-relaxed" style={{ color: '#6b7280' }}>
+          Cette action supprimera <strong>définitivement</strong> votre profil, vos bénéficiaires et toutes vos données. Elle est <strong>irréversible</strong>.
+        </p>
+      </Modal>
     </div>
   );
 };
