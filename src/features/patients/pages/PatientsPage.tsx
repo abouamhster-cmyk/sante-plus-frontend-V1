@@ -165,8 +165,11 @@ export const PatientsPage = () => {
       setAssignmentsMap(mapAssign);
 
       // 4. Charger la liste des Aidants avec tous les champs du RegisterPage (Bio, Adresse, Zones, etc.)
+      // aidants_catalog : vue sans données sensibles (birth_date, address, hourly_rate exclus)
+      // Remarque : birth_date et address seront null pour les utilisateurs famille.
+      // Les coordinateurs/admins ont accès à la table complète via leur politique RLS.
       const { data: aidantsDb } = await supabase
-        .from('aidants')
+        .from('aidants_catalog')
         .select('*, user:profiles(id, full_name, email, phone, role, created_at)')
         .eq('status', 'approved');
 

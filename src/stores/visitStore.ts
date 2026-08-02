@@ -274,8 +274,9 @@ export const useVisitStore = create<VisitState>((set, get) => ({
 
       let aidant = null;
       if (visit.aidant_id) {
+        // aidants_catalog : vue sans données sensibles, accessible à la famille
         const { data: aidantData } = await supabase
-          .from('aidants')
+          .from('aidants_catalog')
           .select('*')
           .eq('id', visit.aidant_id)
           .single();

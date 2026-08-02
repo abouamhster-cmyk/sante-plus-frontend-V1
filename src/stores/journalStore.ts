@@ -213,8 +213,9 @@ export const useJournalStore = create<JournalState>((set, get) => ({
       let aidantMap: Record<string, any> = {};
 
       if (aidantIds.length > 0) {
+        // aidants_catalog : vue sans données sensibles, accessible famille + aidant
         const { data: aidants, error: aidantsError } = await supabase
-          .from('aidants')
+          .from('aidants_catalog')
           .select(`
             id,
             user_id,
@@ -224,7 +225,7 @@ export const useJournalStore = create<JournalState>((set, get) => ({
             total_missions,
             completed_missions,
             cancelled_missions,
-            user:profiles!aidants_user_id_fkey (
+            user:profiles (
               id,
               full_name,
               email,

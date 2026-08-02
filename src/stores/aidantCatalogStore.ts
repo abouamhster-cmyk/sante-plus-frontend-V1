@@ -132,11 +132,13 @@ export const useAidantCatalogStore = create<AidantCatalogStore>((set, get) => ({
     try {
       set({ isLoadingQuota: true, error: null });
 
+      // aidants_catalog : vue sans données sensibles (birth_date, address, hourly_rate)
+      // accessible à tous les utilisateurs authentifiés, y compris la famille.
       const { data: aidants, error: aidantsError } = await supabase
-        .from('aidants')
+        .from('aidants_catalog')
         .select(`
           *,
-          user:profiles!aidants_user_id_fkey(
+          user:profiles(
             id,
             full_name,
             email,
@@ -197,7 +199,7 @@ export const useAidantCatalogStore = create<AidantCatalogStore>((set, get) => ({
   getAidantQuotaById: async (aidantId: string) => {
     try {
       const { data: aidant, error: aidantError } = await supabase
-        .from('aidants')
+        .from('aidants_catalog')
         .select('id, user_id, current_assignments, max_assignments, current_orders, max_orders')
         .eq('id', aidantId)
         .single();
@@ -296,10 +298,10 @@ export const useAidantCatalogStore = create<AidantCatalogStore>((set, get) => ({
       set({ isLoading: true, error: null });
 
       const { data: aidant, error } = await supabase
-        .from('aidants')
+        .from('aidants_catalog')
         .select(`
           *,
-          user:profiles!aidants_user_id_fkey(
+          user:profiles(
             id,
             full_name,
             email,

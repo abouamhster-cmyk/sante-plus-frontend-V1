@@ -602,7 +602,7 @@ export const notify = {
       let query = supabase.from('profiles').select('id').eq('role', 'aidant');
       if (onlyAvailable) {
         const { data: aidants } = await supabase
-          .from('aidants')
+          .from('aidants_catalog')
           .select('user_id')
           .eq('available', true)
           .eq('is_verified', true);
@@ -665,7 +665,7 @@ export const notify = {
       if (!visits || visits.length === 0) return { success: true, sent: 0 };
       const aidantIds = [...new Set(visits.map((v: any) => v.aidant_id))];
       const { data: aidants } = await supabase
-        .from('aidants')
+        .from('aidants_catalog')
         .select('user_id')
         .in('id', aidantIds)
         .eq('available', true)
