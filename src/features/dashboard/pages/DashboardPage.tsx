@@ -461,14 +461,14 @@ const DashboardPage = () => {
         <div className="flex transition-transform duration-500 ease-out h-[200px] sm:h-[190px] w-full" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
           {slides.map((slide, index) => (
             <div key={index} className="w-full shrink-0 h-full relative" style={{ backgroundImage: `linear-gradient(100deg, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.5) 55%, rgba(0,0,0,0.15) 100%), url('${slide.image}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-              <div className="relative z-10 flex flex-col h-full p-6 pb-14">
+              <div className="relative z-10 flex flex-col h-full p-6 pb-12 sm:pb-14">
                 <div className="space-y-2 min-w-0 max-w-md">
                   <h1 className="text-lg sm:text-xl font-black text-white tracking-tight leading-snug">{slide.title}</h1>
-                  <p className="text-white/80 text-xs sm:text-[13px] font-medium leading-relaxed line-clamp-3">{slide.description}</p>
+                  <p className="text-white/80 text-xs sm:text-[13px] font-medium leading-relaxed line-clamp-2 sm:line-clamp-3">{slide.description}</p>
                 </div>
                 <button
                   onClick={() => navigate(slide.actionPath)}
-                  className="inline-flex items-center gap-1.5 text-white text-xs font-bold px-4 py-2.5 rounded-2xl w-fit transition-all shadow-lg active:scale-95 hover:opacity-90 mt-4"
+                  className="inline-flex items-center gap-1.5 text-white text-xs font-bold px-4 py-2.5 rounded-2xl w-fit transition-all shadow-lg active:scale-95 hover:opacity-90 mt-3 sm:mt-4"
                   style={{ background: colors.gold || '#c9a84c' }}
                 >
                   {slide.actionText}<ArrowRight size={13} />
@@ -483,7 +483,9 @@ const DashboardPage = () => {
               <button key={index} onClick={() => handleDotClick(index)} className={cn('h-1.5 rounded-full transition-all duration-300', currentSlide === index ? 'w-6 bg-white' : 'w-1.5 bg-white/40')} aria-label={`Slide ${index + 1}`} />
             ))}
           </div>
-          <div className="flex items-center gap-1.5 pointer-events-auto">
+          {/* Flèches masquées sur mobile : le swipe tactile suffit et elles entraient
+              en collision visuelle avec le bouton d'action sur petit écran. */}
+          <div className="hidden sm:flex items-center gap-1.5 pointer-events-auto">
             <button onClick={handlePrevSlide} className="w-8 h-8 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center text-white/90 hover:bg-white/25 transition active:scale-90" aria-label="Précédent"><ChevronLeft size={15} /></button>
             <button onClick={handleNextSlide} className="w-8 h-8 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center text-white/90 hover:bg-white/25 transition active:scale-90" aria-label="Suivant"><ChevronRight size={15} /></button>
           </div>
