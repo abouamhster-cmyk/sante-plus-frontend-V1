@@ -21,6 +21,7 @@ import { formatDate, cn } from '@/utils/helpers';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { SkeletonList } from '@/components/ui/Spinner';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { AssignAidantModal } from '@/features/aidants/components/AssignAidantModal';
 import toast from 'react-hot-toast';
 import { confirmDialog } from '@/components/ui/ConfirmDialog';
@@ -372,24 +373,36 @@ export const PatientsPage = () => {
     <div className="w-full max-w-5xl mx-auto space-y-6 pb-12 px-3 sm:px-0">
       
       {/* HEADER */}
-      <section className="bg-white rounded-3xl p-6 border shadow-sm flex justify-between items-center" style={{ borderColor: colors.primary + '15' }}>
+      <section className="bg-white rounded-3xl p-5 sm:p-6 border shadow-sm flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3" style={{ borderColor: colors.primary + '15' }}>
         <div>
-          <h1 className="text-xl font-black" style={{ color: colors.text }}>
+          <h1 className="text-lg sm:text-xl font-black" style={{ color: colors.text }}>
             {isAdmin ? 'Gestion des Bénéficiaires & Équipe' : 'Mes proches'}
           </h1>
           <p className="text-xs text-gray-500 font-semibold mt-1">
             {isAdmin ? 'Consultation 360° des dossiers administratifs & cliniques' : 'Suivi de vos proches accompagnés'}
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={fetchAllData}
-          iconLeft={<RefreshCw size={13} className={isLoadingData ? 'animate-spin' : ''} />}
-          isLoading={isLoadingData}
-        >
-          Actualiser
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          {!isAdmin && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setIsModalOpen(true)}
+              iconLeft={<UserPlus size={13} />}
+            >
+              Ajouter un proche
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchAllData}
+            iconLeft={<RefreshCw size={13} className={isLoadingData ? 'animate-spin' : ''} />}
+            isLoading={isLoadingData}
+          >
+            Actualiser
+          </Button>
+        </div>
       </section>
 
       {/* RECHERCHE ET FILTRES */}
@@ -488,6 +501,20 @@ export const PatientsPage = () => {
             ))}
           </div>
         </div>
+      ) : patients.length === 0 ? (
+        /* VUE FAMILLE — AUCUN PROCHE */
+        <div className="py-4">
+          <EmptyState
+            icon={<UserPlus size={20} />}
+            title="Aucun proche enregistré"
+            description="Ajoutez votre premier proche pour commencer à planifier son accompagnement."
+            primaryAction={{
+              label: 'Ajouter un proche',
+              onClick: () => setIsModalOpen(true),
+              icon: <UserPlus size={13} />,
+            }}
+          />
+        </div>
       ) : (
         /* VUE FAMILLE D'ORIGINE */
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -572,6 +599,15 @@ export const PatientsPage = () => {
           isAdmin={true}
         />
       )}
+
+      {/* MODALE AJOUT D'UN PROCHE (famille) */}
+      <PatientModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        mode="create"
+        patient={null}
+        onSuccess={fetchAllData}
+      />
     </div>
   );
 };
