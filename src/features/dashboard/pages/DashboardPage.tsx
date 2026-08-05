@@ -24,6 +24,8 @@ import { useRefreshableData } from '@/hooks/useRefreshableData';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/utils/helpers';
 import toast from 'react-hot-toast';
+import { Button } from '@/components/ui/Button';
+import { Skeleton, SkeletonCard } from '@/components/ui/Spinner';
 
 import { VisitCard } from '@/components/visits/VisitCard';
 import { OrderCard } from '@/components/orders/OrderCard';
@@ -356,19 +358,24 @@ const DashboardPage = () => {
 
   if (stabilizedLoading) {
     return (
-      <div className="space-y-4 max-w-5xl mx-auto px-3 sm:px-0 pb-4 animate-pulse">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-black/5" />
+      <div className="space-y-4 max-w-5xl mx-auto px-3 sm:px-0 pb-4">
+        {/* Header skeleton */}
+        <div className="flex items-center gap-3 pt-1">
+          <Skeleton className="w-12 h-12 shrink-0" />
           <div className="flex-1 space-y-2">
-            <div className="h-3 w-32 rounded-full bg-black/5" />
-            <div className="h-4 w-40 rounded-full bg-black/10" />
+            <Skeleton className="h-3 w-32" />
+            <Skeleton className="h-4 w-40" />
           </div>
         </div>
-        <div className="h-[200px] rounded-[28px] bg-black/5" />
+        {/* Carousel skeleton */}
+        <Skeleton className="h-[200px] rounded-[28px]" />
+        {/* Stats skeleton */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {[1, 2, 3, 4].map((i) => (<div key={i} className="h-24 rounded-[24px] bg-black/5" />))}
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 rounded-[24px]" />)}
         </div>
-        <div className="h-52 rounded-[28px] bg-black/5" />
+        {/* Content skeleton */}
+        <SkeletonCard />
+        <SkeletonCard />
       </div>
     );
   }
@@ -438,9 +445,13 @@ const DashboardPage = () => {
                 </p>
               </div>
             </div>
-            <button onClick={() => navigate('/app/visits?filter=brouillon')} className="text-white text-xs font-bold px-4 py-2.5 rounded-2xl transition shrink-0 hover:opacity-90 active:scale-95" style={{ background: colors.primary }}>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => navigate('/app/visits?filter=brouillon')}
+            >
               Voir mes brouillons
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -599,9 +610,16 @@ const DashboardPage = () => {
           <p className="text-xs mt-1.5 max-w-sm mx-auto leading-relaxed" style={{ color: colors.textLight }}>
             Passez votre première commande de livraison de première nécessité pour découvrir nos services.
           </p>
-          <button onClick={() => navigate('/app/orders/create')} className="mt-5 px-6 py-3 rounded-2xl text-white font-bold text-xs transition-all hover:opacity-95 inline-flex items-center gap-1.5 active:scale-95" style={{ background: colors.primary }}>
-            <ShoppingBag size={14} />Nouvelle commande
-          </button>
+          <div className="flex justify-center mt-5">
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => navigate('/app/orders/create')}
+              iconLeft={<ShoppingBag size={14} />}
+            >
+              Nouvelle commande
+            </Button>
+          </div>
         </section>
       )}
 

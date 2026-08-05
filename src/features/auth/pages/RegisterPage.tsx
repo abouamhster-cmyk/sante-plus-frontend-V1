@@ -29,6 +29,8 @@ import {
 
 import { authAPI } from '@/lib/api';
 import { Logo } from '@/components/ui/Logo';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Offer } from '@/types';
 import { InfoModal } from '@/components/ui/InfoModal';
 import { FAQContent } from '../components/FAQContent';
@@ -746,10 +748,51 @@ const RegisterPage = () => {
                     <div className="space-y-3 animate-fadeIn">
                       <div className="space-y-0.5"><h3 className="text-base font-bold" style={{ color: textColor }}>Identifiants de l'adhérent</h3><p className="text-xs" style={{ color: colors.textLight }}>Informations personnelles du titulaire du compte.</p></div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                        <div><label className="block text-xs font-semibold mb-1" style={{ color: textColor }}>Nom complet *</label><div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 size-4" style={{ color: colors.textLight }} /><input name="full_name" value={formData.full_name} onChange={handleChange} placeholder="Ex: Jean Dupont" className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl border outline-none text-xs focus:ring-1" style={{ borderColor: colors.border, background: colors.background, color: textColor }} required /></div></div>
-                        <div><label className="block text-xs font-semibold mb-1" style={{ color: textColor }}>Téléphone *</label><div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 size-4" style={{ color: colors.textLight }} /><input name="phone" value={formData.phone} onChange={handleChange} placeholder="+229 90 00 00 00" className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl border outline-none text-xs focus:ring-1" style={{ borderColor: colors.border, background: colors.background, color: textColor }} required /></div></div>
-                        <div className="sm:col-span-2"><label className="block text-xs font-semibold mb-1" style={{ color: textColor }}>Adresse e-mail de connexion *</label><div className="relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4" style={{ color: colors.textLight }} /><input name="email" type="email" value={formData.email} onChange={handleChange} placeholder="votremail@adresse.com" className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl border outline-none text-xs focus:ring-1" style={{ borderColor: colors.border, background: colors.background, color: textColor }} required /></div></div>
-                        <div className="sm:col-span-2"><label className="block text-xs font-semibold mb-1" style={{ color: textColor }}>Mot de passe de sécurité *</label><div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4" style={{ color: colors.textLight }} /><input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange} required minLength={6} placeholder="Minimum 6 caractères" className="w-full pl-9 pr-9 py-2.5 rounded-2xl border outline-none text-xs focus:ring-1" style={{ borderColor: colors.border, background: colors.background, color: textColor }} /><button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: colors.textLight }}>{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></div>
+                        <Input
+                          label="Nom complet"
+                          name="full_name"
+                          value={formData.full_name}
+                          onChange={handleChange}
+                          placeholder="Ex: Jean Dupont"
+                          iconLeft={<User size={13} />}
+                          required
+                        />
+                        <Input
+                          label="Téléphone"
+                          name="phone"
+                          type="tel"
+                          value={formData.phone}
+                          onChange={handleChange}
+                          placeholder="+229 90 00 00 00"
+                          iconLeft={<Phone size={13} />}
+                          required
+                        />
+                        <div className="sm:col-span-2">
+                          <Input
+                            label="Adresse e-mail de connexion"
+                            name="email"
+                            type="email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            placeholder="votremail@adresse.com"
+                            iconLeft={<Mail size={13} />}
+                            required
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <Input
+                            label="Mot de passe"
+                            name="password"
+                            type="password"
+                            value={formData.password}
+                            onChange={handleChange}
+                            placeholder="Minimum 6 caractères"
+                            iconLeft={<Lock size={13} />}
+                            helper="Au moins 6 caractères"
+                            required
+                            minLength={6}
+                          />
+                        </div>
                       </div>
                     </div>
                   )}
@@ -845,45 +888,39 @@ const RegisterPage = () => {
                     ============================================ */}
                 <div className="flex gap-3 mt-4">
                   {step > 1 && (
-                    <button
-                      type="button"
+                    <Button
+                      variant="outline"
+                      size="md"
                       onClick={handleBack}
-                      className="flex-1 max-w-[150px] py-2.5 rounded-2xl text-xs font-bold border transition-colors hover:bg-gray-50 flex items-center justify-center gap-1.5"
-                      style={{ borderColor: colors.border, color: textColor }}
+                      iconLeft={<ArrowLeft size={13} />}
+                      className="flex-1 max-w-[140px]"
                     >
-                      <ArrowLeft size={14} /> Retour
-                    </button>
+                      Retour
+                    </Button>
                   )}
 
                   {step !== totalSteps ? (
-                    <button
-                      type="button"
+                    <Button
+                      variant="primary"
+                      size="md"
+                      fullWidth
                       onClick={handleContinue}
-                      className="flex-1 py-2.5 rounded-2xl text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm hover:opacity-95"
-                      style={{ background: primaryColor }}
+                      iconRight={<ArrowRight size={13} />}
                     >
-                      Continuer <ArrowRight size={14} />
-                    </button>
+                      Continuer
+                    </Button>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={handleSubmit}
+                    <Button
+                      variant="primary"
+                      size="md"
+                      fullWidth
+                      isLoading={isLoading}
                       disabled={!canSubmit() || isLoading}
-                      className="flex-1 py-2.5 rounded-xl text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={{ background: canSubmit() ? primaryColor : '#9CA3AF' }}
+                      onClick={handleSubmit}
+                      iconLeft={!isLoading ? <CheckCircle size={13} /> : undefined}
                     >
-                      {isLoading ? (
-                        <>
-                          <Loader2 size={14} className="animate-spin" />
-                          Envoi en cours...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle size={14} />
-                          {isAidant ? 'Soumettre ma candidature' : 'Créer mon compte'}
-                        </>
-                      )}
-                    </button>
+                      {!isLoading && (isAidant ? 'Soumettre ma candidature' : 'Créer mon compte')}
+                    </Button>
                   )}
                 </div>
               </div>
