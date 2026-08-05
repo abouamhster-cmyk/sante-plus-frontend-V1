@@ -37,9 +37,11 @@ import { useVisitStore } from '@/stores/visitStore';
 import { useOrderStore } from '@/stores/orderStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useAidantCatalogStore } from '@/stores/aidantCatalogStore';
-import { usePatientStore } from '@/stores/patientStore'; // ✅ Chargement des dossiers cliniques
+import { usePatientStore } from '@/stores/patientStore';
 import { useBranding } from '@/hooks/useBranding';
 import { useTerminology } from '@/hooks/useTerminology';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Button } from '@/components/ui/Button';
 import { formatDate, formatTime, formatCurrency, cn } from '@/utils/helpers';
 import { VISIT_ACTIONS_SENIOR, VISIT_ACTIONS_MAMAN } from '@/lib/constants';
 import { supabase } from '@/lib/supabase';
@@ -880,10 +882,13 @@ const MissionsPage = () => {
               );
             })
           ) : (
-            <div className="col-span-2 bg-white rounded-3xl p-10 text-center border border-gray-100">
-              <User size={36} className="mx-auto text-gray-300 mb-3" />
-              <p className="text-sm font-bold text-gray-700">Aucun bénéficiaire rattaché</p>
-              <p className="text-xs text-gray-400 mt-1">Vous serez mis au courant dès que l'administration vous assignera un bénéficiaire.</p>
+            <div className="col-span-2">
+              <EmptyState
+                icon={<User size={20} />}
+                title="Aucun bénéficiaire rattaché"
+                description="Vous serez notifié dès que l'administration vous assignera un bénéficiaire."
+                compact
+              />
             </div>
           )}
         </div>
@@ -918,22 +923,16 @@ const MissionsPage = () => {
           ))}
         </section>
       ) : (
-        <section className="bg-white/40 rounded-2xl py-16 px-6 text-center border max-w-sm mx-auto flex flex-col items-center justify-center gap-4 backdrop-blur-sm shadow-sm" style={{ borderColor: colors.primary + '15' }}>
-          <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400">
-            {activeTab === 'missions' ? <ClipboardList size={20} /> :
-             activeTab === 'deliveries' ? <Truck size={20} /> :
-             <Package size={20} />}
-          </div>
-
-          <div className="space-y-1">
-            <h3 className="font-extrabold text-sm" style={{ color: colors.text }}>
-              Aucun résultat
-            </h3>
-            <p className="text-xs max-w-xs leading-relaxed" style={{ color: colors.textLight }}>
-              Aucun élément ne correspond à ce filtre actuellement.
-            </p>
-          </div>
-        </section>
+        <EmptyState
+          icon={
+            activeTab === 'missions' ? <ClipboardList size={20} /> :
+            activeTab === 'deliveries' ? <Truck size={20} /> :
+            <Package size={20} />
+          }
+          title="Aucun résultat"
+          description="Aucun élément ne correspond à ce filtre actuellement."
+          compact
+        />
       )}
 
       {/* ============================================================
@@ -1174,60 +1173,100 @@ const MissionsPage = () => {
       {/* MODAL RAPPORT LIVRAISON */}
       {showDeliveryReportModal && selectedOrderForDelivery && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-md p-6 shadow-2xl my-8 space-y-5" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b pb-3">
-              <h2 className="text-sm sm:text-base font-black">🏁 Clôturer la livraison</h2>
-              <button onClick={() => setShowDeliveryReportModal(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X size={18} /></button>
+          <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-2xl my-8 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between pb-3 border-b" style={{ borderColor: colors.border + '60' }}>
+              <h2 className="text-sm font-extrabold" style={{ color: colors.text }}>Clôturer la livraison</h2>
+              <button
+                onClick={() => setShowDeliveryReportModal(false)}
+                className="w-7 h-7 rounded-xl flex items-center justify-center hover:bg-black/5 transition"
+                style={{ color: colors.textLight }}
+              >
+                <X size={16} />
+              </button>
             </div>
 
-            <p className="text-xs text-gray-500">Renseignez les détails de transport et de règlement.</p>
+            <p className="text-xs" style={{ color: colors.textLight }}>Renseignez les détails de transport et de règlement.</p>
 
             {!selectedOrderForDelivery.subscription_id ? (
               <div className="space-y-3">
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-500 uppercase">Frais de livraison réels (FCFA)</label>
+                  <label className="block text-[11px] font-semibold mb-1" style={{ color: colors.text }}>
+                    Frais de livraison réels (FCFA)
+                  </label>
                   <input
                     type="number"
                     value={deliveryFeeInput || ''}
                     onChange={(e) => setDeliveryFeeInput(Number(e.target.value))}
-                    className="w-full h-10 px-3.5 border rounded-xl text-xs font-bold bg-white mt-1 outline-none"
+                    className="w-full h-10 px-3 border rounded-xl text-xs font-bold outline-none transition-all"
+                    style={{ borderColor: colors.border, color: colors.text, backgroundColor: colors.surface }}
                     placeholder="Ex: 1500"
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="block text-[10px] font-bold text-gray-500 uppercase">Règlement client</label>
+                <div>
+                  <label className="block text-[11px] font-semibold mb-1" style={{ color: colors.text }}>
+                    Règlement client
+                  </label>
                   <div className="grid grid-cols-2 gap-2">
-                    <button type="button" onClick={() => setPaymentMethod('online')} className={cn("p-2 rounded-xl text-[10px] font-black uppercase border", paymentMethod === 'online' ? 'border-emerald-500 bg-emerald-50/10 text-emerald-950' : 'bg-white')}>💳 En ligne (Momo)</button>
-                    <button type="button" onClick={() => setPaymentMethod('cash')} className={cn("p-2 rounded-xl text-[10px] font-black uppercase border", paymentMethod === 'cash' ? 'border-emerald-500 bg-emerald-50/10 text-emerald-950' : 'bg-white')}>💵 Espèces (Main)</button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('online')}
+                      className="p-2.5 rounded-xl text-[11px] font-bold border transition-all"
+                      style={paymentMethod === 'online'
+                        ? { borderColor: colors.primary, background: colors.primary + '10', color: colors.primary }
+                        : { borderColor: colors.border, color: colors.textLight }}
+                    >
+                      💳 Momo / Mobile
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('cash')}
+                      className="p-2.5 rounded-xl text-[11px] font-bold border transition-all"
+                      style={paymentMethod === 'cash'
+                        ? { borderColor: colors.primary, background: colors.primary + '10', color: colors.primary }
+                        : { borderColor: colors.border, color: colors.textLight }}
+                    >
+                      💵 Espèces
+                    </button>
                   </div>
                 </div>
 
                 {paymentMethod === 'cash' && (
-                  <div className="animate-fadeIn">
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase">Montant exact reçu (FCFA)</label>
+                  <div>
+                    <label className="block text-[11px] font-semibold mb-1" style={{ color: colors.text }}>
+                      Montant exact reçu (FCFA)
+                    </label>
                     <input
                       type="number"
                       value={cashReceivedInput || ''}
                       onChange={(e) => setCashReceivedInput(Number(e.target.value))}
-                      className="w-full h-10 px-3.5 border rounded-xl text-xs font-bold bg-white mt-1 outline-none"
+                      className="w-full h-10 px-3 border rounded-xl text-xs font-bold outline-none transition-all"
+                      style={{ borderColor: colors.border, color: colors.text, backgroundColor: colors.surface }}
                       placeholder="Ex: 1500"
                     />
                   </div>
                 )}
               </div>
             ) : (
-              <p className="text-xs font-bold text-emerald-600 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-                ✅ Livraison gratuite (couverte par abonnement).
+              <p className="text-xs font-bold p-3 rounded-xl border" style={{ background: '#f0fdf4', color: '#16a34a', borderColor: '#bbf7d0' }}>
+                ✅ Livraison gratuite (couverte par votre abonnement).
               </p>
             )}
 
-            <div className="grid grid-cols-2 gap-2 pt-3 border-t">
-              <button onClick={() => setShowDeliveryReportModal(false)} className="h-11 rounded-xl font-bold text-gray-500 border">Annuler</button>
-              <button onClick={handleDeliverOrder} disabled={isUpdating} className="h-11 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5">
-                {isUpdating ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                Valider
-              </button>
+            <div className="grid grid-cols-2 gap-2 pt-3 border-t" style={{ borderColor: colors.border + '60' }}>
+              <Button variant="ghost" size="md" fullWidth onClick={() => setShowDeliveryReportModal(false)}>
+                Annuler
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                fullWidth
+                isLoading={isUpdating}
+                onClick={handleDeliverOrder}
+                style={{ background: '#16a34a', boxShadow: 'none' }}
+              >
+                {!isUpdating && <><Check size={13} className="mr-1" />Valider</>}
+              </Button>
             </div>
           </div>
         </div>

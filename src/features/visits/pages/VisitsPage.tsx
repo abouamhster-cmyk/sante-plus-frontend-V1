@@ -22,6 +22,9 @@ import { useTerminology } from '@/hooks/useTerminology';
 import { VisitCard } from '@/components/visits/VisitCard';
 import { VisitModal } from '../components/VisitModal';
 import { AssignAidantModal } from '@/features/aidants/components/AssignAidantModal';
+import { Button } from '@/components/ui/Button';
+import { SkeletonList } from '@/components/ui/Spinner';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { cn } from '@/utils/helpers';
 import toast from 'react-hot-toast';
 import { confirmDialog } from '@/components/ui/ConfirmDialog';
@@ -247,13 +250,9 @@ const VisitsPage = () => {
 
   if (isLoading || subLoading) {
     return (
-      <div className="space-y-6">
-        <div className="h-28 bg-gray-100 rounded-2xl animate-pulse" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {[1, 2].map((i) => (
-            <div key={i} className="h-44 bg-gray-100 rounded-2xl animate-pulse" />
-          ))}
-        </div>
+      <div className="w-full max-w-5xl mx-auto space-y-4 pb-6 px-1 sm:px-0">
+        <div className="h-20 rounded-2xl animate-pulse" style={{ background: '#0000000a' }} />
+        <SkeletonList count={3} />
       </div>
     );
   }
@@ -326,14 +325,15 @@ const VisitsPage = () => {
         )}
 
         {canPlanify && (
-          <button
+          <Button
+            variant="primary"
+            size="md"
             onClick={handleAdd}
-            className="inline-flex items-center justify-center gap-1.5 h-10 px-5 rounded-xl text-xs font-bold text-white transition hover:opacity-90 shadow-sm relative z-10"
-            style={{ background: colors.primary }}
+            iconLeft={<Plus size={13} strokeWidth={2.5} />}
+            className="relative z-10"
           >
-            <Plus size={13} strokeWidth={2.5} />
-            <span>Planifier une visite (Admin)</span>
-          </button>
+            Planifier une visite
+          </Button>
         )}
 
         <button
@@ -421,53 +421,35 @@ const VisitsPage = () => {
 
           {/* BOUTON CHARGER PLUS */}
           {hasMore && (
-            <button
+            <Button
+              variant="outline"
+              size="md"
+              fullWidth
+              isLoading={isLoadingMore}
               onClick={loadMoreVisits}
-              disabled={isLoadingMore}
-              className="w-full py-3.5 rounded-2xl text-sm font-bold border-2 transition-all hover:opacity-80 disabled:opacity-40 flex items-center justify-center gap-2"
-              style={{ borderColor: colors.primary, color: colors.primary }}
             >
-              {isLoadingMore ? (
-                <>
-                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"/>
-                  </svg>
-                  Chargement…
-                </>
-              ) : (
-                `Charger plus · ${total - visits.length} restante${total - visits.length > 1 ? 's' : ''}`
-              )}
-            </button>
+              {!isLoadingMore && `Charger plus · ${total - visits.length} restante${total - visits.length > 1 ? 's' : ''}`}
+            </Button>
           )}
         </section>
       ) : (
-        /* ÉCRAN VIDE */
-        <section className="bg-white/40 rounded-2xl py-16 px-6 text-center border max-w-sm mx-auto flex flex-col items-center justify-center gap-4 backdrop-blur-sm shadow-sm" style={{ borderColor: colors.primary + '15' }}>
-          <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400">
-            <Calendar size={20} />
-          </div>
-
-          <div className="space-y-1">
-            <h3 className="font-extrabold text-sm" style={{ color: colors.text }}>
-              Aucun accompagnement trouvé
-            </h3>
-            <p className="text-xs max-w-xs leading-relaxed" style={{ color: colors.textLight }}>
-              Aucun accompagnement programmé ne correspond à ce filtre de statut.
-            </p>
-          </div>
-
-          {canPlanify && filterStatus === 'all' && (
-            <button
-              onClick={handleAdd}
-              className="inline-flex items-center gap-1.5 px-4 h-9 rounded-xl text-white font-bold text-xs transition hover:opacity-90 shadow-sm"
-              style={{ background: colors.primary }}
-            >
-              <Plus size={13} strokeWidth={2.5} />
-              Planifier une visite
-            </button>
-          )}
-        </section>
+        /* ÉTAT VIDE */
+        <EmptyState
+          illustration="calendar"
+          title="Aucun accompagnement trouvé"
+          description={
+            filterStatus !== 'all'
+              ? 'Aucune visite ne correspond à ce filtre.'
+              : isAidantRole
+              ? 'Vous serez notifié dès qu\'une mission vous est assignée.'
+              : 'Les visites planifiées par l\'administration apparaîtront ici.'
+          }
+          primaryAction={
+            canPlanify && filterStatus === 'all'
+              ? { label: 'Planifier une visite', onClick: handleAdd, icon: <Plus size={13} /> }
+              : undefined
+          }
+        />
       )}
 
       {/* BOUTON FLOATING MOBILE ADMIN */}
@@ -484,8 +466,6 @@ const VisitsPage = () => {
           <Plus size={20} strokeWidth={2.5} />
         </button>
       )}
-
-      {/* MODALE DE CRÉATION ADMIN */}
       {canPlanify && (
         <VisitModal
           isOpen={isModalOpen}
