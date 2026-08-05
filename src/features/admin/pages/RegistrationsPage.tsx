@@ -11,6 +11,7 @@ import {
   Eye,
   Search,
   Filter,
+  ClipboardList,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getThemeColors, getThemeByRole } from '@/lib/permissions';
@@ -18,6 +19,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { formatDate } from '@/utils/helpers';
 import { useRefreshableData } from '@/hooks/useRefreshableData';
 import { RefreshButton } from '@/components/ui/RefreshButton';
+import { SkeletonList } from '@/components/ui/Spinner';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { cn } from '@/utils/helpers';
 import toast from 'react-hot-toast';
 
@@ -146,8 +149,9 @@ const RegistrationsPage = () => {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 max-w-5xl mx-auto pb-8">
-        <div className="h-24 bg-white rounded-3xl animate-pulse shadow-sm" />
+      <div className="space-y-4 max-w-5xl mx-auto pb-8 px-4 sm:px-0">
+        <div className="h-20 rounded-2xl animate-pulse" style={{ background: '#0000000a' }} />
+        <SkeletonList count={4} />
       </div>
     );
   }
@@ -230,10 +234,15 @@ const RegistrationsPage = () => {
       {/* GRILLE LISTE D'INSCRIPTIONS */}
       <section className="bg-white rounded-3xl shadow-sm border border-gray-100/50 overflow-hidden divide-y" style={{ borderColor: colors.border }}>
         {filteredRegistrations.length === 0 ? (
-          <div className="p-12 text-center text-gray-400 text-xs font-medium">
-            {searchTerm || statusFilter !== 'all' 
-              ? 'Aucun dossier ne correspond à votre recherche' 
-              : 'Aucun dossier trouvé'}
+          <div className="py-4">
+            <EmptyState
+              icon={<ClipboardList size={20} />}
+              title={searchTerm || statusFilter !== 'all' ? 'Aucun résultat' : 'Aucun dossier'}
+              description={searchTerm || statusFilter !== 'all'
+                ? 'Aucun dossier ne correspond à votre recherche.'
+                : 'Les nouvelles inscriptions apparaîtront ici.'}
+              compact
+            />
           </div>
         ) : (
           filteredRegistrations.map((reg) => (

@@ -319,14 +319,14 @@ const BillingPage = () => {
     return "Consultez votre crédit d'accompagnement mensuel, vos formules de visites et l'historique complet de vos règlements.";
   };
 
-  // Rendu stabilisé de transition (Plus aucun effet de flicker !) [23]
+  // Rendu stabilisé de transition
   if (stabilizedLoading) {
     return (
-      <div className="space-y-6 max-w-5xl mx-auto pb-6">
-        <div className="h-28 bg-gray-100 dark:bg-gray-800/50 rounded-2xl animate-pulse" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3].map((item) => (
-            <div key={item} className="h-44 bg-gray-100 dark:bg-gray-850 rounded-2xl animate-pulse" />
+      <div className="space-y-4 max-w-5xl mx-auto pb-6">
+        <div className="h-24 rounded-2xl animate-pulse" style={{ background: '#0000000a' }} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-44 rounded-2xl animate-pulse" style={{ background: '#0000000a' }} />
           ))}
         </div>
       </div>
@@ -336,17 +336,15 @@ const BillingPage = () => {
   if (isAidantRole) {
     return (
       <div className="max-w-5xl mx-auto pb-6">
-        <section className="bg-white rounded-2xl py-14 px-6 text-center border max-w-md mx-auto space-y-4" style={{ borderColor: colors.primary + '15' }}>
-          <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 mx-auto">
-            <ShieldCheck size={22} style={{ color: colors.primary }} />
+        <div className="flex flex-col items-center justify-center text-center rounded-2xl border py-14 px-6 max-w-md mx-auto" style={{ borderColor: colors.border + '60', backgroundColor: colors.surface }}>
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4" style={{ background: colors.primary + '12', color: colors.primary }}>
+            <ShieldCheck size={22} />
           </div>
-          <div className="space-y-1">
-            <h2 className="text-sm font-bold" style={{ color: colors.text }}>Espace Intervenant homologué</h2>
-            <p className="text-xs max-w-xs leading-relaxed" style={{ color: colors.textLight }}>
-              En tant qu'auxiliaire de vie qualifié, vous n'avez pas d'abonnement ou de facturation d'heures à gérer sur cette interface.
-            </p>
-          </div>
-        </section>
+          <h2 className="text-sm font-extrabold mb-1" style={{ color: colors.text }}>Espace Intervenant homologué</h2>
+          <p className="text-xs max-w-[24ch] leading-relaxed" style={{ color: colors.textLight }}>
+            En tant qu'auxiliaire de vie qualifié, vous n'avez pas d'abonnement à gérer depuis cette interface.
+          </p>
+        </div>
       </div>
     );
   }

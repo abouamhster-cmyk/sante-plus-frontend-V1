@@ -231,9 +231,23 @@ const AdminPaymentsPage = () => {
       {/* Liste épurée */}
       <section className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.015)] overflow-hidden">
         {isLoading ? (
-          <div className="p-10 text-center"><RefreshCw size={24} className="animate-spin mx-auto text-gray-300" /></div>
+          <div className="p-6 space-y-3">
+            {[1,2,3,4].map(i => (
+              <div key={i} className="h-12 rounded-xl animate-pulse" style={{ background: '#0000000a' }} />
+            ))}
+          </div>
         ) : filteredPayments.length === 0 ? (
-          <div className="p-12 text-center text-gray-400">Aucun paiement trouvé</div>
+          <div className="py-4">
+            <div className="flex flex-col items-center justify-center text-center py-10 gap-3">
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: colors.primary + '12', color: colors.primary }}>
+                <CreditCard size={18} />
+              </div>
+              <div>
+                <p className="text-sm font-extrabold" style={{ color: colors.text }}>Aucun paiement</p>
+                <p className="text-xs mt-0.5" style={{ color: colors.textLight }}>Les transactions apparaîtront ici.</p>
+              </div>
+            </div>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
