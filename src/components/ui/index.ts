@@ -31,7 +31,7 @@ export { Logo } from './Logo';
 export { Illustration } from './Illustration';
 export { RoleBanner } from './RoleBanner';
 export { StatusBadge } from './StatusBadge';
-export { ConfirmDialog, useConfirmDialog } from './ConfirmDialog';
+export { confirmDialog, ConfirmDialogHost } from './ConfirmDialog';
 
 // ─── Exports default (compatibilité) ────────────────────────
 export { default as ModalDefault } from './Modal';

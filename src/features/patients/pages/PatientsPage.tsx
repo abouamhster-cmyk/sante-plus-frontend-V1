@@ -19,6 +19,8 @@ import { supabase } from '@/lib/supabase';
 import { assignmentAPI } from '@/lib/api';
 import { formatDate, cn } from '@/utils/helpers';
 import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
+import { SkeletonList } from '@/components/ui/Spinner';
 import { AssignAidantModal } from '@/features/aidants/components/AssignAidantModal';
 import toast from 'react-hot-toast';
 import { confirmDialog } from '@/components/ui/ConfirmDialog';
@@ -359,12 +361,9 @@ export const PatientsPage = () => {
 
   if (isLoading) {
     return (
-      <div className="w-full max-w-5xl mx-auto space-y-6 animate-pulse">
-        <div className="h-28 bg-white rounded-3xl" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="h-44 bg-white rounded-3xl" />
-          <div className="h-44 bg-white rounded-3xl" />
-        </div>
+      <div className="w-full max-w-5xl mx-auto space-y-4 px-3 sm:px-0">
+        <div className="h-20 rounded-2xl animate-pulse" style={{ background: '#0000000a' }} />
+        <SkeletonList count={3} />
       </div>
     );
   }
@@ -382,9 +381,15 @@ export const PatientsPage = () => {
             {isAdmin ? 'Consultation 360° des dossiers administratifs & cliniques' : 'Suivi de vos proches accompagnés'}
           </p>
         </div>
-        <button onClick={fetchAllData} className="px-3.5 py-2 rounded-xl text-xs font-bold border bg-gray-50 hover:bg-gray-100 flex items-center gap-1.5">
-          <RefreshCw size={14} className={isLoadingData ? 'animate-spin' : ''} /> Actualiser
-        </button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={fetchAllData}
+          iconLeft={<RefreshCw size={13} className={isLoadingData ? 'animate-spin' : ''} />}
+          isLoading={isLoadingData}
+        >
+          Actualiser
+        </Button>
       </section>
 
       {/* RECHERCHE ET FILTRES */}
