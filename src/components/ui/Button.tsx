@@ -112,6 +112,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
       className={cn(
         'inline-flex items-center justify-center font-bold transition-all duration-200',
         'active:scale-[0.97] select-none',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
         'disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100',
         SIZE_CLASSES[size],
         variant === 'primary' && 'hover:opacity-90',
@@ -123,7 +124,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
         fullWidth && 'w-full',
         className,
       )}
-      style={{ ...getVariantStyle(), ...style }}
+      style={{ ...getVariantStyle(), '--tw-ring-color': variant === 'danger' ? '#EF4444' : colors.primary, ...style } as React.CSSProperties}
       {...props}
     >
       {isLoading ? (
