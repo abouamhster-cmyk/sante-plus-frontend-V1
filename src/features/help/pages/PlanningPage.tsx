@@ -21,6 +21,7 @@ import { useBranding } from '@/hooks/useBranding';
 import { useTerminology } from '@/hooks/useTerminology';
 import { formatDate, formatTime, cn } from '@/utils/helpers';
 import { Illustration } from '@/components/ui/Illustration';
+import { Skeleton } from '@/components/ui/Spinner';
 import toast from 'react-hot-toast';
 
 // =============================================
@@ -167,12 +168,10 @@ const PlanningPage = () => {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="h-28 bg-gray-100 rounded-2xl animate-pulse" />
+      <div className="space-y-4">
+        <Skeleton className="h-24" />
         <div className="grid grid-cols-7 gap-2">
-          {[1, 2, 3, 4, 5, 6, 7].map((item) => (
-            <div key={item} className="h-16 bg-gray-100 rounded-2xl animate-pulse" />
-          ))}
+          {[1, 2, 3, 4, 5, 6, 7].map(i => <Skeleton key={i} className="h-16" />)}
         </div>
       </div>
     );

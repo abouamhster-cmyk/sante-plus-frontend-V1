@@ -35,6 +35,7 @@ import { supabase } from '@/lib/supabase';
 import { AssignAidantModal } from '@/features/aidants/components/AssignAidantModal';
 import { VisitWizardModal } from '@/features/visits/components/VisitWizardModal';
 import { ModalFullScreen } from '@/components/ui/ModalFullScreen';
+import { SkeletonList } from '@/components/ui/Spinner';
 import toast from 'react-hot-toast';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://app-react-back.onrender.com/api';
@@ -796,8 +797,9 @@ const AdminVisitValidationPage = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[300px]">
-        <Loader2 className="animate-spin" size={32} style={{ color: colors.primary }} />
+      <div className="space-y-4 max-w-5xl mx-auto pb-12 px-4 sm:px-0">
+        <div className="h-24 rounded-2xl animate-pulse" style={{ background: '#0000000a' }} />
+        <SkeletonList count={4} />
       </div>
     );
   }

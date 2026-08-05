@@ -10,6 +10,8 @@ import { useBranding } from '@/hooks/useBranding';
 import { useTerminology } from '@/hooks/useTerminology';
 import { formatDate, formatTime, formatCurrency, cn } from '@/utils/helpers';
 import { supabase } from '@/lib/supabase';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { SkeletonList } from '@/components/ui/Spinner';
 import toast from 'react-hot-toast';
 
 type HistoryType = 'all' | 'missions' | 'deliveries';
@@ -176,18 +178,12 @@ const HistoryPage = () => {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="h-28 bg-gray-100 rounded-2xl animate-pulse" />
+      <div className="space-y-4">
+        <div className="h-24 rounded-2xl animate-pulse" style={{ background: '#0000000a' }} />
         <div className="grid grid-cols-3 gap-3">
-          {[1, 2, 3].map((item) => (
-            <div key={item} className="h-28 bg-gray-100 rounded-2xl animate-pulse" />
-          ))}
+          {[1, 2, 3].map(i => <div key={i} className="h-24 rounded-2xl animate-pulse" style={{ background: '#0000000a' }} />)}
         </div>
-        <div className="space-y-3">
-          {[1, 2].map((item) => (
-            <div key={item} className="h-20 bg-gray-100 rounded-2xl animate-pulse" />
-          ))}
-        </div>
+        <SkeletonList count={2} />
       </div>
     );
   }
@@ -393,19 +389,15 @@ const HistoryPage = () => {
           ))}
         </section>
       ) : (
-        <section className="bg-white/40 rounded-2xl py-16 px-6 text-center border max-w-sm mx-auto flex flex-col items-center justify-center gap-4 backdrop-blur-sm shadow-sm" style={{ borderColor: colors.primary + '15' }}>
-          <Calendar size={32} className="text-gray-400 opacity-60 animate-pulse" />
-          <div className="space-y-1">
-            <h3 className="font-extrabold text-sm" style={{ color: colors.text }}>
-              {searchTerm ? 'Aucun résultat correspondant' : 'Historique vierge'}
-            </h3>
-            <p className="text-xs max-w-xs leading-relaxed" style={{ color: colors.textLight }}>
-              {searchTerm
-                ? 'Essayez d\'ajuster vos filtres de recherche ou de réinitialiser les termes.'
-                : 'Toutes vos interventions d\'aide et vos livraisons d\'urgence finalisées apparaîtront ici.'}
-            </p>
-          </div>
-        </section>
+        <EmptyState
+          icon={<Calendar size={20} />}
+          title={searchTerm ? 'Aucun résultat' : 'Historique vierge'}
+          description={
+            searchTerm
+              ? 'Essayez d\'ajuster vos filtres de recherche.'
+              : 'Vos interventions et livraisons finalisées apparaîtront ici.'
+          }
+        />
       )}
     </div>
   );

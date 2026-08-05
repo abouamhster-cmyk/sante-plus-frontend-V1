@@ -8,6 +8,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { formatDate } from '@/utils/helpers';
 import { UserCheck, Check, X, Loader2, Eye, MapPin, Briefcase } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { SkeletonList } from '@/components/ui/Spinner';
 import { CandidateDetailsModal } from '../components/CandidateDetailsModal';
 import toast from 'react-hot-toast';
 import { confirmDialog } from '@/components/ui/ConfirmDialog';
@@ -168,8 +170,9 @@ const AidantCandidatesPage = () => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-[300px]">
-        <Loader2 className="animate-spin text-gray-300" size={24} />
+      <div className="space-y-4 max-w-5xl mx-auto pb-12 px-4 sm:px-0">
+        <div className="h-20 rounded-2xl animate-pulse" style={{ background: '#0000000a' }} />
+        <SkeletonList count={3} />
       </div>
     );
   }
@@ -192,9 +195,11 @@ const AidantCandidatesPage = () => {
       </section>
 
       {candidates.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 text-center border border-gray-100 shadow-sm max-w-sm mx-auto">
-          <p className="text-xs font-bold text-gray-400">Aucun dossier en attente d'approbation</p>
-        </div>
+        <EmptyState
+          icon={<UserCheck size={20} />}
+          title="Aucun dossier en attente"
+          description="Les candidatures d'aidants à valider apparaîtront ici."
+        />
       ) : (
         <div className="grid grid-cols-1 gap-4">
           {candidates.map((candidate) => (

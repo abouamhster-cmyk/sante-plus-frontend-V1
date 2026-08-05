@@ -26,6 +26,9 @@ import { useAuthStore } from '@/stores/authStore';
 import { formatDate } from '@/utils/helpers';
 import { Modal } from '@/components/ui/Modal';
 import { InfoRow } from '@/components/ui/InfoRow';
+import { Button } from '@/components/ui/Button';
+import { SkeletonList } from '@/components/ui/Spinner';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { cn } from '@/utils/helpers';
 import toast from 'react-hot-toast';
 import { confirmDialog } from '@/components/ui/ConfirmDialog';
@@ -345,11 +348,12 @@ const AidantsPage = () => {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 max-w-5xl mx-auto pb-8 animate-pulse">
-        <div className="h-24 bg-white rounded-3xl" />
+      <div className="space-y-4 max-w-5xl mx-auto pb-8 px-3 sm:px-0">
+        <div className="h-20 rounded-2xl animate-pulse" style={{ background: '#0000000a' }} />
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {[1, 2, 3, 4].map((i) => <div key={i} className="h-16 bg-white rounded-2xl" />)}
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-16 rounded-2xl animate-pulse" style={{ background: '#0000000a' }} />)}
         </div>
+        <SkeletonList count={3} />
       </div>
     );
   }
@@ -370,14 +374,16 @@ const AidantsPage = () => {
               {stats.total} aidant(s) inscrit(s) • {stats.pending > 0 ? `⚠️ ${stats.pending} en attente de validation` : 'Tous les comptes sont à jour'}
             </p>
           </div>
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={fetchAidants}
-            disabled={isLoading}
-            className="h-11 px-4 rounded-xl text-xs font-bold border bg-white hover:bg-gray-50 flex items-center justify-center gap-1.5 shrink-0 self-start sm:self-center shadow-sm"
+            isLoading={isLoading}
+            iconLeft={<RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />}
+            className="self-start sm:self-center"
           >
-            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
             Actualiser
-          </button>
+          </Button>
         </div>
       </section>
 
@@ -483,8 +489,13 @@ const AidantsPage = () => {
           })}
         </section>
       ) : (
-        <div className="bg-white rounded-3xl p-12 text-center text-gray-400 text-xs font-bold border">
-          Aucun aidant ne correspond aux critères sélectionnés.
+        <div className="py-4">
+          <EmptyState
+            icon={<UsersIcon size={20} />}
+            title="Aucun aidant"
+            description="Aucun aidant ne correspond aux critères sélectionnés."
+            compact
+          />
         </div>
       )}
 
