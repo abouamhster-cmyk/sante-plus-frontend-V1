@@ -471,6 +471,7 @@ const OrdersPage = () => {
               : undefined
           }
         />
+      )}
 
       {/* BOUTON FLOTTANT MOBILE */}
       {isFamily && (
