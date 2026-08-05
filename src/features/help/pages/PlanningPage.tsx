@@ -247,7 +247,7 @@ const PlanningPage = () => {
               );
             }}
             disabled={isLoading}
-            className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 hover:text-gray-600 transition shadow-inner shrink-0"
+            className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 hover:text-gray-600 transition shadow-inner shrink-0"
             title="Rafraîchir"
           >
             <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />

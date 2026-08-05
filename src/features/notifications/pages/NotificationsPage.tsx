@@ -264,7 +264,7 @@ const NotificationsPage = () => {
           <button
             onClick={() => fetchNotifications(true)}
             disabled={isLoading}
-            className="w-8 h-8 rounded-xl bg-gray-50 dark:bg-[#24362d] flex items-center justify-center text-gray-400 hover:text-gray-600 transition"
+            className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-[#24362d] flex items-center justify-center text-gray-400 hover:text-gray-600 transition"
             title="Actualiser"
           >
             <RefreshCw size={12} className={isLoading ? 'animate-spin' : ''} />

@@ -397,7 +397,7 @@ const BillingPage = () => {
             );
           }}
           disabled={rawLoading}
-          className="absolute top-4 right-4 w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 hover:text-gray-600 transition"
+          className="absolute top-4 right-4 w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 hover:text-gray-600 transition"
           title="Actualiser"
         >
           <RefreshCw size={13} className={rawLoading ? 'animate-spin' : ''} />

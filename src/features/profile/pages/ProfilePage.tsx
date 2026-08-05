@@ -186,7 +186,7 @@ const ProfilePage = () => {
             </div>
             {isEditing && (
               <label
-                className="absolute -bottom-1 -right-1 w-8 h-8 rounded-2xl bg-white shadow-md flex items-center justify-center cursor-pointer border hover:scale-105 transition"
+                className="absolute -bottom-1 -right-1 w-10 h-10 rounded-2xl bg-white shadow-md flex items-center justify-center cursor-pointer border hover:scale-105 transition"
                 style={{ color: colors.primary, borderColor: colors.border }}
               >
                 <Camera size={15} />

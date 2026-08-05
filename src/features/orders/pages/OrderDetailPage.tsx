@@ -997,7 +997,7 @@ const OrderDetailPage = () => {
                       setProofFile(null); 
                       setProofPreview(null); 
                     }} 
-                    className="absolute top-3 right-3 w-8 h-8 rounded-xl bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition" 
+                    className="absolute top-3 right-3 w-10 h-10 rounded-xl bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition" 
                   >
                     <XCircle size={18} />
                   </button>

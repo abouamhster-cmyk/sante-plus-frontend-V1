@@ -665,7 +665,7 @@ const MissionsPage = () => {
             setIsRefreshing(false);
           }}
           disabled={isRefreshing || isLoading_}
-          className="absolute top-4 right-4 w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 hover:text-gray-600 transition"
+          className="absolute top-4 right-4 w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 hover:text-gray-600 transition"
           title="Actualiser"
         >
           <RefreshCw size={13} className={isRefreshing || isLoading_ ? 'animate-spin' : ''} />
@@ -1178,7 +1178,7 @@ const MissionsPage = () => {
               <h2 className="text-sm font-extrabold" style={{ color: colors.text }}>Clôturer la livraison</h2>
               <button
                 onClick={() => setShowDeliveryReportModal(false)}
-                className="w-7 h-7 rounded-xl flex items-center justify-center hover:bg-black/5 transition"
+                className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-black/5 transition"
                 style={{ color: colors.textLight }}
               >
                 <X size={16} />
@@ -1342,7 +1342,7 @@ const MissionItemCompact = ({
               <Play size={12} fill="#ffffff" /> <span>Démarrer</span>
             </button>
           )}
-          <button onClick={(e) => { e.stopPropagation(); onView(); }} className="w-8 h-8 rounded-xl bg-gray-50 border text-gray-400 hover:text-gray-700 flex items-center justify-center transition-all" style={{ borderColor: colors.primary + '10' }}>
+          <button onClick={(e) => { e.stopPropagation(); onView(); }} className="w-10 h-10 rounded-xl bg-gray-50 border text-gray-400 hover:text-gray-700 flex items-center justify-center transition-all" style={{ borderColor: colors.primary + '10' }}>
             <Eye size={13} />
           </button>
         </div>
@@ -1399,7 +1399,7 @@ const MissionItemCompact = ({
             </button>
           )}
 
-          <button onClick={(e) => { e.stopPropagation(); onView(); }} className="w-8 h-8 rounded-xl bg-gray-50 border text-gray-400 hover:text-gray-800 flex items-center justify-center transition-all" style={{ borderColor: colors.primary + '10' }}>
+          <button onClick={(e) => { e.stopPropagation(); onView(); }} className="w-10 h-10 rounded-xl bg-gray-50 border text-gray-400 hover:text-gray-800 flex items-center justify-center transition-all" style={{ borderColor: colors.primary + '10' }}>
             <Eye size={13} />
           </button>
         </div>

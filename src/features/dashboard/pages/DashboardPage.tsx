@@ -484,8 +484,8 @@ const DashboardPage = () => {
             ))}
           </div>
           <div className="flex items-center gap-1.5 pointer-events-auto">
-            <button onClick={handlePrevSlide} className="w-7 h-7 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center text-white/90 hover:bg-white/25 transition active:scale-90" aria-label="Précédent"><ChevronLeft size={15} /></button>
-            <button onClick={handleNextSlide} className="w-7 h-7 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center text-white/90 hover:bg-white/25 transition active:scale-90" aria-label="Suivant"><ChevronRight size={15} /></button>
+            <button onClick={handlePrevSlide} className="w-8 h-8 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center text-white/90 hover:bg-white/25 transition active:scale-90" aria-label="Précédent"><ChevronLeft size={15} /></button>
+            <button onClick={handleNextSlide} className="w-8 h-8 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center text-white/90 hover:bg-white/25 transition active:scale-90" aria-label="Suivant"><ChevronRight size={15} /></button>
           </div>
         </div>
       </section>
