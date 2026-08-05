@@ -5,6 +5,7 @@ import { persist } from 'zustand/middleware';
 import { supabase } from '@/lib/supabase';
 import { Profile, UserRole } from '@/types';
 import { setSentryUser } from '@/lib/sentry';
+import { clearAllCaches } from '@/lib/cache';
 
  
 interface AuthState {
@@ -351,6 +352,18 @@ export const useAuthStore = create<AuthState>()(
         } finally {
           profileCache.clear();
           localStorage.removeItem('auth-storage');
+
+          // ============================================================
+          // 🔒 PURGE DE TOUS LES CACHES APPLICATIFS
+          // ============================================================
+          // AVANT : seul 'auth-storage' était supprimé. Les caches
+          // 'sante_plus_visits_cache', 'sante_plus_patients_cache', etc.
+          // restaient en localStorage après la déconnexion — avec les noms,
+          // adresses et données de santé des bénéficiaires.
+          //
+          // Sur un téléphone partagé (situation courante), la personne
+          // suivante pouvait les lire via la console du navigateur.
+          clearAllCaches();
 
           // Dissocier l'utilisateur : les erreurs suivantes ne doivent plus
           // lui être rattachées.

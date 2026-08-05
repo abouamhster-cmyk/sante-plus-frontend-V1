@@ -6,6 +6,14 @@ import { Visit, VisitStatus } from '@/types';
 import { useAuthStore } from './authStore';
 import { assignmentAPI } from '@/lib/api';
 import api from '@/lib/api';
+import {
+  readCache,
+  writeCache,
+  invalidateCache,
+  isOffline,
+  CACHE_KEYS,
+  CACHE_TTL,
+} from '@/lib/cache';
 import toast from 'react-hot-toast';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://app-react-back.onrender.com/api';
@@ -32,38 +40,19 @@ export const getPonctualPrice = (durationMinutes: number = 60): number => {
   return Math.round((durationMinutes / 60) * 7500);
 };
 
-const CACHE_KEY = 'sante_plus_visits_cache';
-const CACHE_DURATION = 60000;
+// ============================================================
+// CACHE — délégué au module centralisé src/lib/cache.ts
+// ============================================================
+// Le cache est lié à l'utilisateur (userId) : impossible de servir
+// les visites d'un compte à un autre sur un appareil partagé.
 
-const getCachedVisits = (): { data: Visit[]; timestamp: number } | null => {
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) return JSON.parse(cached);
-    return null;
-  } catch {
-    return null;
-  }
-};
+const getCachedVisits = (userId?: string) =>
+  readCache<Visit[]>(CACHE_KEYS.VISITS, CACHE_TTL.DEFAULT, userId);
 
-const setCachedVisits = (visits: Visit[]) => {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({
-      data: visits,
-      timestamp: Date.now(),
-    }));
-  } catch {
-    /* ignore */
-  }
-};
+const setCachedVisits = (visits: Visit[], userId?: string) =>
+  writeCache(CACHE_KEYS.VISITS, visits, userId);
 
-const clearCachedVisits = () => {
-  try {
-    localStorage.removeItem(CACHE_KEY);
-    console.log('🗑️ Cache visites invalidé');
-  } catch {
-    /* ignore */
-  }
-};
+const clearCachedVisits = () => invalidateCache(CACHE_KEYS.VISITS);
 
 interface VisitState {
   visits: Visit[];
@@ -73,6 +62,11 @@ interface VisitState {
   error: string | null;
   isInitialized: boolean;
   lastFetch: number | null;
+  /** true quand les données affichées viennent d'un cache périmé
+   *  (hors ligne ou rechargement en cours) — permet à l'UI de le signaler. */
+  isStaleData: boolean;
+  /** Date du cache actuellement affiché, pour l'indiquer à l'utilisateur. */
+  cacheTimestamp: number | null;
   isCacheInvalidated: boolean;
   total: number;
   hasMore: boolean;
@@ -127,6 +121,8 @@ export const useVisitStore = create<VisitState>((set, get) => ({
   isInitialized: false,
   lastFetch: null,
   isCacheInvalidated: false,
+  isStaleData: false,
+  cacheTimestamp: null,
   total: 0,
   hasMore: false,
 
@@ -194,77 +190,124 @@ export const useVisitStore = create<VisitState>((set, get) => ({
     }
   },
 
+  // ============================================================
+  // CHARGEMENT DES VISITES — stratégie « stale-while-revalidate »
+  // ============================================================
+  // L'utilisateur ne doit JAMAIS voir une page vide s'il a déjà
+  // consulté ses visites une fois. Trois cas :
+  //
+  //   1. Cache frais           → affiché, pas de requête réseau.
+  //   2. Cache périmé + réseau → affiché IMMÉDIATEMENT, puis remplacé
+  //                              par les données fraîches en arrière-plan.
+  //   3. Hors ligne            → cache affiché quel que soit son âge,
+  //                              avec sa date pour que l'utilisateur sache.
   fetchVisits: async (force = false) => {
     const state = get();
+    if (state.isLoading) return;
 
-    if (state.isLoading) {
-      console.log('ℹ️ Déjà en cours de chargement, skip...');
+    if (state.isCacheInvalidated) force = true;
+
+    const { user } = useAuthStore.getState();
+    if (!user) {
+      set({ visits: [], isLoading: false, isInitialized: true });
       return;
     }
 
-    if (state.isCacheInvalidated) {
-      force = true;
-    }
+    const cached = getCachedVisits(user.id);
 
-    if (!force && state.lastFetch && (Date.now() - state.lastFetch < CACHE_DURATION)) {
-      console.log('📦 Utilisation du cache mémoire visites');
+    // ── 1. Cache frais : rien à faire ────────────────────────
+    if (!force && cached && !cached.isStale) {
+      set({
+        visits: cached.data,
+        isLoading: false,
+        isInitialized: true,
+        lastFetch: cached.timestamp,
+        cacheTimestamp: cached.timestamp,
+        isStaleData: false,
+        isCacheInvalidated: false,
+      });
       return;
     }
 
-    if (!force) {
-      const cached = getCachedVisits();
-      if (cached && (Date.now() - cached.timestamp < CACHE_DURATION)) {
-        console.log('📦 Utilisation du cache localStorage visites');
-        set({ 
-          visits: cached.data, 
-          isLoading: false, 
+    // ── 2. Hors ligne : on sert le cache quel que soit son âge ──
+    // Sans ça, l'utilisateur voit une page vide alors que ses
+    // données sont disponibles localement.
+    if (isOffline()) {
+      if (cached) {
+        set({
+          visits: cached.data,
+          isLoading: false,
           isInitialized: true,
-          lastFetch: cached.timestamp,
-          isCacheInvalidated: false,
+          cacheTimestamp: cached.timestamp,
+          isStaleData: true,
+          error: null,
         });
-        return;
+      } else {
+        set({
+          isLoading: false,
+          isInitialized: true,
+          error: 'Aucune donnée disponible hors ligne.',
+        });
       }
+      return;
     }
 
+    // ── 3. Cache périmé mais en ligne : affichage immédiat ────
+    // On montre les anciennes données pendant que la requête part,
+    // au lieu d'un écran de chargement vide.
+    if (cached && cached.data.length > 0) {
+      set({
+        visits: cached.data,
+        cacheTimestamp: cached.timestamp,
+        isStaleData: true,
+        isInitialized: true,
+        isLoading: false,
+      });
+    } else {
+      set({ isLoading: true });
+    }
+
+    // ── 4. Rechargement réseau ───────────────────────────────
     try {
-      set({ isLoading: true, error: null, isCacheInvalidated: false });
-      
-      const { user } = useAuthStore.getState();
-      if (!user) {
-        set({ visits: [], isLoading: false });
-        return;
-      }
+      set({ error: null, isCacheInvalidated: false });
 
       const response = await api.get('/visits', { params: { limit: 20, offset: 0 } });
       const visitsData = response.data || [];
       const total = parseInt(response.headers['x-total-count'] || '0', 10);
 
-      setCachedVisits(visitsData);
-      
-      set({ 
+      // Les données fraîches écrasent systématiquement le cache :
+      // le cache ne bloque jamais l'arrivée de nouvelles informations.
+      setCachedVisits(visitsData, user.id);
+
+      set({
         visits: visitsData,
         total,
         hasMore: visitsData.length < total,
         isLoading: false,
         isInitialized: true,
         lastFetch: Date.now(),
+        cacheTimestamp: Date.now(),
+        isStaleData: false,
         isCacheInvalidated: false,
       });
     } catch (error: any) {
-      console.error('❌ Fetch visits error:', error);
-      
-      const cached = getCachedVisits();
+      // Échec réseau : on garde ce qui est déjà affiché plutôt que
+      // de vider l'écran. On signale simplement que c'est périmé.
       if (cached && cached.data.length > 0) {
         set({
           visits: cached.data,
           isLoading: false,
           isInitialized: true,
-          lastFetch: cached.timestamp,
-          error: error.message || 'Erreur de chargement (cache utilisé)',
-          isCacheInvalidated: false,
+          cacheTimestamp: cached.timestamp,
+          isStaleData: true,
+          error: null,
         });
       } else {
-        set({ error: error.message, isLoading: false, isInitialized: true });
+        set({
+          error: error.message || 'Impossible de charger les visites.',
+          isLoading: false,
+          isInitialized: true,
+        });
       }
     }
   },

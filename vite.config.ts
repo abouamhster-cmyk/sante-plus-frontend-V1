@@ -53,7 +53,69 @@ export default defineConfig(({ mode }) => ({
         // ✅ CORRECTIF : Augmente la limite de cache pour le gros fichier bundle (index-js)
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,mp3}'],
+
+        // ============================================================
+        // 📴 NAVIGATION HORS LIGNE
+        // ============================================================
+        // Sans cette ligne, ouvrir l'application sans réseau affiche
+        // l'écran « Pas de connexion » du navigateur : l'app ne démarre
+        // même pas, alors que tous ses fichiers sont en cache.
+        // On sert index.html pour toute navigation, le routeur React
+        // prend ensuite le relais avec les données locales.
+        navigateFallback: 'index.html',
+        // Les appels API ne doivent jamais recevoir index.html en réponse.
+        navigateFallbackDenylist: [/^\/api\//],
+
+        // ✅ Le nouveau service worker prend la main immédiatement au lieu
+        // d'attendre la fermeture de tous les onglets : sans cela, une
+        // correction déployée pouvait rester invisible pendant des jours.
+        clientsClaim: true,
+        skipWaiting: true,
+
         runtimeCaching: [
+          // ============================================================
+          // 🔄 DONNÉES API — NetworkFirst
+          // ============================================================
+          // On tente toujours le réseau EN PREMIER : les données fraîches
+          // priment systématiquement, le cache ne bloque jamais une mise
+          // à jour. Il ne sert de secours qu'en cas d'échec réseau.
+          //
+          // ⚠️ Uniquement les requêtes GET : on ne rejoue jamais une
+          // création de visite ou un paiement depuis le cache.
+          {
+            urlPattern: ({ url, request }: any) =>
+              request.method === 'GET' && /\/api\//.test(url.pathname),
+            handler: 'NetworkFirst',
+            method: 'GET',
+            options: {
+              cacheName: 'api-cache',
+              networkTimeoutSeconds: 10,
+              expiration: {
+                maxEntries: 100,
+                // 24 h : au-delà, une donnée de santé est trop ancienne
+                // pour être affichée sans avertissement explicite.
+                maxAgeSeconds: 60 * 60 * 24,
+              },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+
+          // ============================================================
+          // 🖼️ IMAGES DISTANTES (avatars, photos de visite Supabase)
+          // ============================================================
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'supabase-storage-cache',
+              expiration: {
+                maxEntries: 60,
+                maxAgeSeconds: 60 * 60 * 24 * 7,
+              },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'CacheFirst',

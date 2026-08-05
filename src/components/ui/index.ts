@@ -19,6 +19,8 @@ export { EmptyState } from './EmptyState';
 
 export { Spinner, Skeleton, SkeletonCard, SkeletonList, PageLoading } from './Spinner';
 
+export { StaleDataBanner } from './StaleDataBanner';
+
 export { Divider, DataRow } from './Divider';
 
 // ─── Composants existants ────────────────────────────────────
