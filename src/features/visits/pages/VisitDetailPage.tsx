@@ -584,7 +584,12 @@ const VisitDetailPage = () => {
             </>
           )}
 
-          {isPendingApproval && isAidant && (
+          {/* Démarrage : uniquement APRÈS acceptation.
+              Auparavant ce bouton était conditionné à `isPendingApproval`
+              (statut « planifiee »). Conséquence : dès que l'aidant
+              acceptait, le statut passait à « acceptee » et TOUS les
+              boutons disparaissaient — il ne pouvait plus rien faire. */}
+          {isAidant && visit.status === 'acceptee' && (
             <button
               onClick={handleStart}
               disabled={isUpdating || isActionPending.current}
