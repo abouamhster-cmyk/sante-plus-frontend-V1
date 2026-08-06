@@ -81,6 +81,11 @@ const makeFallbackProfile = (user: any): Profile => {
     email_verified: false,
     phone_verified: false,
     preferences: {},
+    // Profil de secours construit quand la base est injoignable.
+    // `false` est le choix prudent : au pire l'utilisateur revoit le
+    // parcours de découverte, alors que `true` le priverait
+    // définitivement d'une première prise en main.
+    has_seen_onboarding: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };

@@ -349,7 +349,10 @@ export const useJournalStore = create<JournalState>((set, get) => ({
       force = true;
     }
 
-    const cachedStats = getCachedStats();
+    // Les statistiques sont dérivées des entrées de l'utilisateur : le
+    // cache doit être cloisonné par compte, comme partout ailleurs.
+    const { user } = useAuthStore.getState();
+    const cachedStats = getCachedStats(user?.id);
 
     // Cache frais, ou hors ligne : on sert le cache.
     if (cachedStats && (!force && !cachedStats.isStale || isOffline())) {
@@ -414,7 +417,7 @@ export const useJournalStore = create<JournalState>((set, get) => ({
         actions_frequency: actionsFrequency,
       };
 
-      setCachedStats(stats, user.id);
+      setCachedStats(stats, user?.id);
       
       set({
         stats,
