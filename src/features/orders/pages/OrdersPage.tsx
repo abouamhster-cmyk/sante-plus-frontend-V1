@@ -15,6 +15,7 @@ import { AssignAidantModal } from '@/features/aidants/components/AssignAidantMod
 import { Button } from '@/components/ui/Button';
 import { SkeletonList } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { StaleDataBanner } from '@/components/ui/StaleDataBanner';
 import { isOrderPonctual, cn } from '@/utils/helpers';
 import { supabase } from '@/lib/supabase';
 import toast from 'react-hot-toast';
@@ -38,7 +39,7 @@ const OrdersPage = () => {
   const { profile, role, user } = useAuthStore();
   const brand = useBranding();
   const colors = brand.colors;
-  const { orders, isLoading, fetchOrders, updateOrderStatus, takeOrder, hasMore, isLoadingMore, loadMoreOrders, total } = useOrderStore();
+  const { orders, isLoading, fetchOrders, updateOrderStatus, takeOrder, hasMore, isLoadingMore, loadMoreOrders, total, isStaleData, cacheTimestamp } = useOrderStore();
 
   const { isFamily, isAidant, isAdminOrCoordinator } = useTerminology();
 
@@ -291,6 +292,7 @@ const OrdersPage = () => {
           <p className="text-xs max-w-sm mx-auto leading-relaxed" style={{ color: colors.textLight }}>
             Gérez, payez vos commissions ou suivez en direct l'intervenant en cours de livraison.
           </p>
+          <StaleDataBanner show={isStaleData} timestamp={cacheTimestamp} className="justify-center pt-0.5" />
         </div>
 
         {isAidant && aidantQuota && (

@@ -21,6 +21,7 @@ import { formatDate, cn } from '@/utils/helpers';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { SkeletonList } from '@/components/ui/Spinner';
+import { StaleDataBanner } from '@/components/ui/StaleDataBanner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { AssignAidantModal } from '@/features/aidants/components/AssignAidantModal';
 import toast from 'react-hot-toast';
@@ -95,7 +96,7 @@ export const PatientsPage = () => {
   const colors = brand.colors;
 
   const { singular, add, empty, emptyAction, isAidant, isAdminOrCoordinator } = useTerminology();
-  const { patients, isLoading: patientsLoading, fetchPatients, deletePatient, canManagePatients, syncAidantPatients } = usePatientStore();
+  const { patients, isLoading: patientsLoading, fetchPatients, deletePatient, canManagePatients, syncAidantPatients, isStaleData, cacheTimestamp } = usePatientStore();
 
   const [familyAccounts, setFamilyAccounts] = useState<any[]>([]);
   const [allPatients, setAllPatients] = useState<any[]>([]);
@@ -381,6 +382,7 @@ export const PatientsPage = () => {
           <p className="text-xs text-gray-500 font-semibold mt-1">
             {isAdmin ? 'Consultation 360° des dossiers administratifs & cliniques' : 'Suivi de vos proches accompagnés'}
           </p>
+          <StaleDataBanner show={isStaleData} timestamp={cacheTimestamp} className="mt-1" />
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {!isAdmin && (

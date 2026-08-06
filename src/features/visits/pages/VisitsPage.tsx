@@ -25,6 +25,7 @@ import { AssignAidantModal } from '@/features/aidants/components/AssignAidantMod
 import { Button } from '@/components/ui/Button';
 import { SkeletonList } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { StaleDataBanner } from '@/components/ui/StaleDataBanner';
 import { cn } from '@/utils/helpers';
 import toast from 'react-hot-toast';
 import { confirmDialog } from '@/components/ui/ConfirmDialog';
@@ -37,7 +38,7 @@ const VisitsPage = () => {
   const { profile, role, user } = useAuthStore();
   const brand = useBranding();
   const colors = brand.colors;
-  const { visits, isLoading, fetchVisits, startVisit, cancelVisit, hasMore, isLoadingMore, loadMoreVisits, total } = useVisitStore();
+  const { visits, isLoading, fetchVisits, startVisit, cancelVisit, hasMore, isLoadingMore, loadMoreVisits, total, isStaleData, cacheTimestamp } = useVisitStore();
   const { patients, fetchPatients } = usePatientStore();
 
   const {
@@ -297,6 +298,7 @@ const VisitsPage = () => {
               ? 'Consultez votre emploi du temps d\'interventions programmées.' 
               : 'Consultez l\'agenda des interventions d\'aide à domicile programmées par l’administration.'}
           </p>
+          <StaleDataBanner show={isStaleData} timestamp={cacheTimestamp} className="justify-center pt-0.5" />
         </div>
 
         {isFamily && (

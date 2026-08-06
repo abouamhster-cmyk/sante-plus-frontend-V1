@@ -1,68 +1,60 @@
 // 📁 src/components/ui/StaleDataBanner.tsx
 // ============================================================
-// 🕐 BANDEAU « DONNÉES HORS LIGNE »
+// 🕐 MENTION « DONNÉES HORS LIGNE »
 // ============================================================
 //
-// Quand l'application affiche des données issues du cache — parce que
-// le réseau est coupé ou que la requête a échoué — l'utilisateur doit
-// le savoir. Sinon il prend une décision (annuler une visite, appeler
-// un aidant) sur des informations peut-être périmées.
+// Quand l'application affiche des données issues du cache — réseau
+// coupé ou requête échouée — l'utilisateur doit pouvoir le constater
+// s'il le cherche, sans être interrompu s'il ne le cherche pas.
 //
-// Le bandeau reste discret : une ligne, pas de modale bloquante.
-// Il indique l'ancienneté réelle des données et propose de réessayer.
+// D'où le parti pris : une seule ligne de texte discrète, pas de
+// bandeau coloré ni d'encadré. L'information est là pour qui la
+// remarque ; elle ne réclame pas l'attention.
+//
+// SEUIL D'AFFICHAGE (1 h)
+// -----------------------
+// Le cache expire au bout d'une minute et se rafraîchit tout seul.
+// Signaler « périmé » dans ce cas ferait clignoter la mention en
+// usage tout à fait normal, pour rien. On n'affiche donc quelque
+// chose qu'au-delà d'une heure : à ce stade, l'écart avec la réalité
+// devient assez large pour mériter d'être signalé.
 // ============================================================
 
-import { CloudOff, RefreshCw } from 'lucide-react';
+import { CloudOff } from 'lucide-react';
 import { formatCacheAge } from '@/lib/cache';
 import { useBranding } from '@/hooks/useBranding';
+import { cn } from '@/utils/helpers';
+
+/** En deçà d'une heure, on ne dit rien : le cache se rafraîchit seul. */
+const SEUIL_AFFICHAGE_MS = 60 * 60 * 1000;
 
 interface StaleDataBannerProps {
-  /** Affiche le bandeau uniquement si true */
+  /** Vrai quand les données affichées proviennent d'un cache périmé */
   show: boolean;
   /** Date du cache affiché */
   timestamp: number | null;
-  /** Action de rechargement manuel */
-  onRetry?: () => void;
-  isRetrying?: boolean;
+  className?: string;
 }
 
 export const StaleDataBanner = ({
   show,
   timestamp,
-  onRetry,
-  isRetrying = false,
+  className,
 }: StaleDataBannerProps) => {
   const brand = useBranding();
-  const colors = brand.colors;
 
   if (!show || !timestamp) return null;
+  if (Date.now() - timestamp < SEUIL_AFFICHAGE_MS) return null;
 
   return (
-    <div
-      className="flex items-center gap-2.5 rounded-xl px-3 py-2 border text-[11px]"
-      style={{
-        background: '#f59e0b0d',
-        borderColor: '#f59e0b33',
-        color: colors.text,
-      }}
+    <p
+      className={cn('flex items-center gap-1.5 text-[10px] font-medium', className)}
+      style={{ color: brand.colors.textLight }}
       role="status"
     >
-      <CloudOff size={13} className="shrink-0" style={{ color: '#f59e0b' }} />
-      <span className="flex-1 min-w-0 font-medium">
-        Données enregistrées {formatCacheAge(timestamp)}
-      </span>
-      {onRetry && (
-        <button
-          onClick={onRetry}
-          disabled={isRetrying}
-          className="flex items-center gap-1 font-bold shrink-0 px-2 py-1 rounded-lg transition hover:bg-black/5 disabled:opacity-50"
-          style={{ color: '#f59e0b' }}
-        >
-          <RefreshCw size={11} className={isRetrying ? 'animate-spin' : ''} />
-          Actualiser
-        </button>
-      )}
-    </div>
+      <CloudOff size={10} className="shrink-0" />
+      Données de {formatCacheAge(timestamp)}
+    </p>
   );
 };
 
