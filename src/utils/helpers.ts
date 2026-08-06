@@ -90,13 +90,23 @@ export const formatTime = (time: string | Date) => {
   }
   
   if (typeof time === 'string') {
-    if (time.includes(':')) {
+    // ⚠️ ORDRE DES TESTS IMPORTANT
+    // Une date ISO (« 2026-08-06T20:00:02.303Z ») contient elle aussi des
+    // « : ». L'ancien code la découpait donc comme une heure et renvoyait
+    // « 2026-08-06T20:00 » au lieu de « 20:00 » — visible dans les
+    // notifications sous la forme « 6 août 2026 à 2026-08-06T20:00 ».
+    //
+    // On teste donc D'ABORD le format date, et seulement ensuite le
+    // format heure simple « HH:MM » ou « HH:MM:SS ».
+    const looksLikeDate = time.includes('T') || /^\d{4}-\d{2}-\d{2}/.test(time);
+
+    if (!looksLikeDate && time.includes(':')) {
       const parts = time.split(':');
       if (parts.length >= 2) {
         return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
       }
     }
-    
+
     const d = new Date(time);
     if (!isNaN(d.getTime())) {
       return d.toLocaleTimeString('fr-FR', {
