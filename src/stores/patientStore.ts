@@ -5,6 +5,14 @@ import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import { Patient } from '@/types';
 import { useAuthStore } from './authStore';
+import {
+  readCache,
+  writeCache,
+  invalidateCache as removeCacheEntry,
+  isOffline,
+  CACHE_KEYS,
+  CACHE_TTL,
+} from '@/lib/cache';
 
 // ============================================================
 // TYPES
@@ -17,6 +25,10 @@ interface PatientState {
   error: string | null;
   isInitialized: boolean;
   lastFetch: number | null;
+  /** true quand les données viennent d'un cache périmé (hors ligne). */
+  isStaleData: boolean;
+  /** Date du cache affiché, pour l'indiquer à l'utilisateur. */
+  cacheTimestamp: number | null;
   isCacheInvalidated: boolean;
   
   // Actions
@@ -38,44 +50,19 @@ interface PatientState {
 // CONSTANTES
 // ============================================================
 
-const CACHE_DURATION = 60000; // 1 minute
-const CACHE_KEY = 'sante_plus_patients_cache';
-
 // ============================================================
-// HELPERS
+// CACHE — délégué au module centralisé src/lib/cache.ts
 // ============================================================
+// Le cache est lié à l'utilisateur : sur un appareil partagé, les
+// bénéficiaires d'un compte ne peuvent pas apparaître dans un autre.
 
-const getCachedPatients = (): { data: Patient[]; timestamp: number } | null => {
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-      return JSON.parse(cached);
-    }
-    return null;
-  } catch {
-    return null;
-  }
-};
+const getCachedPatients = (userId?: string) =>
+  readCache<Patient[]>(CACHE_KEYS.PATIENTS, CACHE_TTL.DEFAULT, userId);
 
-const setCachedPatients = (patients: Patient[]) => {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({
-      data: patients,
-      timestamp: Date.now(),
-    }));
-  } catch {
-    // Ignorer les erreurs de cache
-  }
-};
+const setCachedPatients = (patients: Patient[], userId?: string) =>
+  writeCache(CACHE_KEYS.PATIENTS, patients, userId);
 
-const clearCachedPatients = () => {
-  try {
-    localStorage.removeItem(CACHE_KEY);
-    console.log('🗑️ Cache patients invalidé');
-  } catch {
-    // Ignorer
-  }
-};
+const clearCachedPatients = () => removeCacheEntry(CACHE_KEYS.PATIENTS);
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://app-react-back.onrender.com/api';
 
@@ -90,6 +77,8 @@ export const usePatientStore = create<PatientState>((set, get) => ({
   error: null,
   isInitialized: false,
   lastFetch: null,
+  isStaleData: false,
+  cacheTimestamp: null,
   isCacheInvalidated: false,
 
   canManagePatients: () => {
@@ -142,64 +131,84 @@ export const usePatientStore = create<PatientState>((set, get) => ({
   // ============================================================
   // FETCH PATIENTS - CHARGEMENT INTÉGRAL DEPUIS L'API REST (BYPASSE RLS)
   // ============================================================
+  // ============================================================
+  // CHARGEMENT DES BÉNÉFICIAIRES — « stale-while-revalidate »
+  // ============================================================
+  // Voir src/lib/cache.ts pour le détail de la stratégie.
+  // En résumé : jamais de page vide si des données existent localement,
+  // et les données fraîches écrasent toujours le cache dès qu'elles arrivent.
   fetchPatients: async (force = false) => {
     const state = get();
-    
-    // ✅ Si déjà en cours de chargement, ne pas recharger
-    if (state.isLoading) {
-      console.log('ℹ️ Déjà en cours de chargement, skip...');
+    if (state.isLoading) return;
+
+    if (state.isCacheInvalidated) force = true;
+
+    const { user } = useAuthStore.getState();
+    if (!user) {
+      set({ patients: [], isLoading: false, isInitialized: true });
       return;
     }
 
-    // ✅ Si cache invalidé, forcer le rechargement
-    if (state.isCacheInvalidated) {
-      force = true;
-    }
+    const cached = getCachedPatients(user.id);
 
-    // ✅ Si cache valide et pas forcé, utiliser le cache
-    if (!force && state.lastFetch && (Date.now() - state.lastFetch < CACHE_DURATION)) {
-      console.log('📦 Utilisation du cache mémoire');
+    // ── 1. Cache frais ───────────────────────────────────────
+    if (!force && cached && !cached.isStale) {
+      set({
+        patients: cached.data,
+        isLoading: false,
+        isInitialized: true,
+        lastFetch: cached.timestamp,
+        cacheTimestamp: cached.timestamp,
+        isStaleData: false,
+        isCacheInvalidated: false,
+      });
       return;
     }
 
-    // ✅ Vérifier le cache localStorage
-    if (!force) {
-      const cached = getCachedPatients();
-      if (cached && (Date.now() - cached.timestamp < CACHE_DURATION)) {
-        console.log('📦 Utilisation du cache localStorage');
-        set({ 
-          patients: cached.data, 
-          isLoading: false, 
+    // ── 2. Hors ligne : servir le cache quel que soit son âge ──
+    if (isOffline()) {
+      if (cached) {
+        set({
+          patients: cached.data,
+          isLoading: false,
           isInitialized: true,
-          lastFetch: cached.timestamp,
-          isCacheInvalidated: false,
+          cacheTimestamp: cached.timestamp,
+          isStaleData: true,
+          error: null,
         });
-        return;
+      } else {
+        set({
+          isLoading: false,
+          isInitialized: true,
+          error: 'Aucune donnée disponible hors ligne.',
+        });
       }
+      return;
     }
 
+    // ── 3. Cache périmé mais en ligne : affichage immédiat ────
+    if (cached && cached.data.length > 0) {
+      set({
+        patients: cached.data,
+        cacheTimestamp: cached.timestamp,
+        isStaleData: true,
+        isInitialized: true,
+        isLoading: false,
+      });
+    } else {
+      set({ isLoading: true });
+    }
+
+    // ── 4. Rechargement réseau ───────────────────────────────
     try {
-      set({ isLoading: true, error: null, isCacheInvalidated: false });
-      
-      const { user } = useAuthStore.getState();
-      
-      if (!user) {
-        set({ patients: [], isLoading: false, isInitialized: true });
-        return;
-      }
+      set({ error: null, isCacheInvalidated: false });
 
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
+      if (!token) throw new Error('Session expirée');
 
-      if (!token) {
-        throw new Error('Session expirée');
-      }
-
-      // ✅ APPEL REST UNIFIÉ : Le backend résout proprement toutes les permissions et mappings (patients + comptes personnels suivis)
       const response = await fetch(`${API_BASE_URL}/patients`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {
@@ -208,38 +217,33 @@ export const usePatientStore = create<PatientState>((set, get) => ({
       }
 
       const patientsData: Patient[] = await response.json();
+      setCachedPatients(patientsData, user.id);
 
-      // Mettre à jour le cache
-      const timestamp = Date.now();
-      setCachedPatients(patientsData);
-      
       set({
         patients: patientsData,
         isLoading: false,
         isInitialized: true,
-        lastFetch: timestamp,
+        lastFetch: Date.now(),
+        cacheTimestamp: Date.now(),
+        isStaleData: false,
         error: null,
         isCacheInvalidated: false,
       });
 
-      console.log(`✅ ${patientsData.length} bénéficiaires chargés avec succès depuis l'API REST`);
-
     } catch (error: any) {
-      console.error('❌ Erreur récupération des patients:', error);
-      
-      const cached = getCachedPatients();
+      // On garde l'affichage existant plutôt que de vider l'écran.
       if (cached && cached.data.length > 0) {
         set({
           patients: cached.data,
           isLoading: false,
           isInitialized: true,
-          lastFetch: cached.timestamp,
-          error: error.message || 'Erreur de chargement (cache utilisé)',
-          isCacheInvalidated: false,
+          cacheTimestamp: cached.timestamp,
+          isStaleData: true,
+          error: null,
         });
       } else {
-        set({ 
-          error: error.message || 'Erreur lors du chargement des patients', 
+        set({
+          error: error.message || 'Erreur lors du chargement des bénéficiaires',
           isLoading: false,
           isInitialized: true,
           isCacheInvalidated: false,

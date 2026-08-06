@@ -3,6 +3,14 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import { Offer } from '@/types';
+import {
+  readCache,
+  writeCache,
+  invalidateCache,
+  isOffline,
+  CACHE_KEYS,
+  CACHE_TTL,
+} from '@/lib/cache';
 
  
 interface OfferState {
@@ -22,9 +30,6 @@ interface OfferState {
   clearCache: () => void;
 }
 
-// ✅ Clé pour le cache localStorage
-const OFFERS_CACHE_KEY = 'sante_plus_offers_cache';
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // ✅ URL UNIQUE
 const API_URL = import.meta.env.VITE_API_URL || 'https://app-react-back.onrender.com/api';
@@ -37,64 +42,82 @@ export const useOfferStore = create<OfferState>((set, get) => ({
   lastUpdated: null,
 
   // ✅ fetchOffers - SANS TOAST
+  // ============================================================
+  // CHARGEMENT DES OFFRES — « stale-while-revalidate »
+  // ============================================================
+  // Les offres ne sont pas liées à un utilisateur (catalogue public),
+  // le cache n'est donc pas cloisonné par compte.
   fetchOffers: async () => {
     const { isInitialized, lastUpdated } = get();
 
-    // ✅ Si déjà initialisé et que le cache est récent, ne pas recharger
-    if (isInitialized && lastUpdated && Date.now() - lastUpdated < CACHE_DURATION) {
-      console.log('📦 Offres déjà chargées et récentes');
+    const cached = readCache<Offer[]>(CACHE_KEYS.OFFERS, CACHE_TTL.LONG);
+
+    // ── 1. Cache mémoire encore frais ────────────────────────
+    if (isInitialized && lastUpdated && Date.now() - lastUpdated < CACHE_TTL.LONG) {
       return;
     }
 
-    try {
-      set({ isLoading: true, error: null });
+    // ── 2. Cache disque frais ────────────────────────────────
+    if (cached && !cached.isStale) {
+      set({
+        offers: cached.data,
+        isLoading: false,
+        isInitialized: true,
+        lastUpdated: cached.timestamp,
+        error: null,
+      });
+      return;
+    }
 
-      // ✅ Vérifier le cache localStorage
-      const cached = localStorage.getItem(OFFERS_CACHE_KEY);
+    // ── 3. Hors ligne : servir le cache quel que soit son âge ──
+    if (isOffline()) {
       if (cached) {
-        try {
-          const { data, timestamp } = JSON.parse(cached);
-          if (Date.now() - timestamp < CACHE_DURATION) {
-            console.log('📦 Offres chargées depuis le cache localStorage');
-            set({
-              offers: data,
-              isLoading: false,
-              isInitialized: true,
-              lastUpdated: timestamp,
-              error: null,
-            });
-            return;
-          }
-        } catch (e) {
-          console.warn('Cache invalide, rechargement...');
-        }
+        set({
+          offers: cached.data,
+          isLoading: false,
+          isInitialized: true,
+          lastUpdated: cached.timestamp,
+          error: null,
+        });
+      } else {
+        set({
+          isLoading: false,
+          isInitialized: true,
+          error: 'Catalogue indisponible hors ligne.',
+        });
       }
+      return;
+    }
 
-      console.log('🔄 Chargement des offres depuis la base de données...');
+    // ── 4. Cache périmé mais en ligne : affichage immédiat ────
+    if (cached && cached.data.length > 0) {
+      set({
+        offers: cached.data,
+        isLoading: false,
+        isInitialized: true,
+        lastUpdated: cached.timestamp,
+      });
+    } else {
+      set({ isLoading: true });
+    }
 
-      // ✅ Appel API
+    // ── 5. Rechargement réseau ───────────────────────────────
+    try {
+      set({ error: null });
+
       const response = await fetch(`${API_URL}/offers`);
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Erreur lors du chargement des offres');
       }
 
       const result = await response.json();
-
       if (!result.success) {
         throw new Error(result.error || 'Erreur inconnue');
       }
 
       const offers: Offer[] = result.data || [];
-
-      // ✅ Mettre en cache localStorage
-      localStorage.setItem(OFFERS_CACHE_KEY, JSON.stringify({
-        data: offers,
-        timestamp: Date.now(),
-      }));
-
-      console.log(`✅ ${offers.length} offres chargées`);
+      writeCache(CACHE_KEYS.OFFERS, offers);
 
       set({
         offers,
@@ -105,26 +128,16 @@ export const useOfferStore = create<OfferState>((set, get) => ({
       });
 
     } catch (error: any) {
-      console.error('❌ Fetch offers error:', error);
-
-      // ✅ En cas d'erreur, essayer d'utiliser le cache même expiré
-      const cached = localStorage.getItem(OFFERS_CACHE_KEY);
-      if (cached) {
-        try {
-          const { data } = JSON.parse(cached);
-          if (data && data.length > 0) {
-            console.warn('⚠️ Utilisation du cache expiré en cas d\'erreur');
-            set({
-              offers: data,
-              isLoading: false,
-              isInitialized: true,
-              error: error.message,
-            });
-            return;
-          }
-        } catch (e) {
-          console.warn('Cache invalide');
-        }
+      // On garde le catalogue affiché plutôt que de vider l'écran.
+      if (cached && cached.data.length > 0) {
+        set({
+          offers: cached.data,
+          isLoading: false,
+          isInitialized: true,
+          lastUpdated: cached.timestamp,
+          error: null,
+        });
+        return;
       }
 
       set({
@@ -167,12 +180,12 @@ export const useOfferStore = create<OfferState>((set, get) => ({
 
   refresh: async () => {
     // ✅ Forcer le rechargement (vider le cache)
-    localStorage.removeItem(OFFERS_CACHE_KEY);
+    invalidateCache(CACHE_KEYS.OFFERS);
     await get().fetchOffers();
   },
 
   clearCache: () => {
-    localStorage.removeItem(OFFERS_CACHE_KEY);
+    invalidateCache(CACHE_KEYS.OFFERS);
     set({
       offers: [],
       isInitialized: false,

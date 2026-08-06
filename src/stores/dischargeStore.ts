@@ -4,38 +4,29 @@ import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import { HospitalDischarge, DischargeStatus } from '@/types';
 import { useAuthStore } from './authStore';
+import {
+  readCache,
+  writeCache,
+  invalidateCache as removeCacheEntry,
+  isOffline,
+  CACHE_KEYS,
+  CACHE_TTL,
+} from '@/lib/cache';
 
  
 // =============================================
 // HELPERS DE CACHE
 // =============================================
 
-const DISCHARGES_CACHE_KEY = 'sante_plus_discharges_cache';
-const CACHE_DURATION = 60000; // 1 minute
+// Cache délégué au module centralisé src/lib/cache.ts
 
-const getCachedDischarges = (): { data: HospitalDischarge[]; timestamp: number } | null => {
-  try {
-    const cached = localStorage.getItem(DISCHARGES_CACHE_KEY);
-    if (cached) return JSON.parse(cached);
-    return null;
-  } catch { return null; }
-};
+const getCachedDischarges = (userId?: string) =>
+  readCache<HospitalDischarge[]>(CACHE_KEYS.DISCHARGES, CACHE_TTL.DEFAULT, userId);
 
-const setCachedDischarges = (discharges: HospitalDischarge[]) => {
-  try {
-    localStorage.setItem(DISCHARGES_CACHE_KEY, JSON.stringify({
-      data: discharges,
-      timestamp: Date.now(),
-    }));
-  } catch { /* ignore */ }
-};
+const setCachedDischarges = (discharges: HospitalDischarge[], userId?: string) =>
+  writeCache(CACHE_KEYS.DISCHARGES, discharges, userId);
 
-const clearCachedDischarges = () => {
-  try {
-    localStorage.removeItem(DISCHARGES_CACHE_KEY);
-    console.log('🗑️ Cache sorties d\'hôpital invalidé');
-  } catch { /* ignore */ }
-};
+const clearCachedDischarges = () => removeCacheEntry(CACHE_KEYS.DISCHARGES);
 
 // =============================================
 // STORE
@@ -48,6 +39,8 @@ interface DischargeState {
   error: string | null;
   isInitialized: boolean;
   lastFetch: number | null;
+  isStaleData: boolean;
+  cacheTimestamp: number | null;
   isCacheInvalidated: boolean;
   
   fetchDischarges: (force?: boolean, patientId?: string) => Promise<void>;
@@ -78,6 +71,8 @@ export const useDischargeStore = create<DischargeState>((set, get) => ({
   error: null,
   isInitialized: false,
   lastFetch: null,
+  isStaleData: false,
+  cacheTimestamp: null,
   isCacheInvalidated: false,
 
   // ✅ Invalider le cache
@@ -117,34 +112,60 @@ export const useDischargeStore = create<DischargeState>((set, get) => ({
       force = true;
     }
 
-    if (!force && state.lastFetch && (Date.now() - state.lastFetch < CACHE_DURATION)) {
-      console.log('📦 Utilisation du cache mémoire sorties');
+    const { user, profile } = useAuthStore.getState();
+    if (!user) {
+      set({ discharges: [], isLoading: false, isInitialized: true });
       return;
     }
 
-    if (!force) {
-      const cached = getCachedDischarges();
-      if (cached && (Date.now() - cached.timestamp < CACHE_DURATION)) {
-        console.log('📦 Utilisation du cache localStorage sorties');
-        set({ 
-          discharges: cached.data, 
-          isLoading: false, 
+    const cached = getCachedDischarges(user.id);
+
+    // ── 1. Cache frais ───────────────────────────────────────
+    if (!force && cached && !cached.isStale) {
+      set({
+        discharges: cached.data,
+        isLoading: false,
+        isInitialized: true,
+        lastFetch: cached.timestamp,
+        cacheTimestamp: cached.timestamp,
+        isStaleData: false,
+        isCacheInvalidated: false,
+      });
+      return;
+    }
+
+    // ── 2. Hors ligne : servir le cache quel que soit son âge ──
+    if (isOffline()) {
+      if (cached) {
+        set({
+          discharges: cached.data,
+          isLoading: false,
           isInitialized: true,
-          lastFetch: cached.timestamp,
-          isCacheInvalidated: false,
+          cacheTimestamp: cached.timestamp,
+          isStaleData: true,
+          error: null,
         });
-        return;
+      } else {
+        set({ isLoading: false, isInitialized: true, error: 'Aucune donnée disponible hors ligne.' });
       }
+      return;
+    }
+
+    // ── 3. Cache périmé mais en ligne : affichage immédiat ────
+    if (cached && cached.data.length > 0) {
+      set({
+        discharges: cached.data,
+        cacheTimestamp: cached.timestamp,
+        isStaleData: true,
+        isInitialized: true,
+        isLoading: false,
+      });
+    } else {
+      set({ isLoading: true });
     }
 
     try {
-      set({ isLoading: true, error: null, isCacheInvalidated: false });
-      
-      const { user, profile } = useAuthStore.getState();
-      if (!user) {
-        set({ discharges: [], isLoading: false, isInitialized: true });
-        return;
-      }
+      set({ error: null, isCacheInvalidated: false });
 
       let query = supabase
         .from('hospital_discharges')
@@ -184,28 +205,29 @@ export const useDischargeStore = create<DischargeState>((set, get) => ({
       const discharges = data || [];
 
       // ✅ Mettre en cache
-      setCachedDischarges(discharges);
+      setCachedDischarges(discharges, user.id);
       
       set({ 
         discharges, 
         isLoading: false,
         isInitialized: true,
         lastFetch: Date.now(),
+        cacheTimestamp: Date.now(),
+        isStaleData: false,
         isCacheInvalidated: false,
       });
     } catch (error: any) {
       console.error('❌ Fetch discharges error:', error);
       
-      // En cas d'erreur, utiliser le cache
-      const cached = getCachedDischarges();
+      // On garde l'affichage existant plutôt que de vider l'écran.
       if (cached && cached.data.length > 0) {
         set({
           discharges: cached.data,
           isLoading: false,
           isInitialized: true,
-          lastFetch: cached.timestamp,
-          error: error.message || 'Erreur de chargement (cache utilisé)',
-          isCacheInvalidated: false,
+          cacheTimestamp: cached.timestamp,
+          isStaleData: true,
+          error: null,
         });
       } else {
         set({ error: error.message, isLoading: false, isInitialized: true });

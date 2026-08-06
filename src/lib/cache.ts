@@ -147,16 +147,25 @@ export const invalidateCache = (key: string): void => {
 };
 
 /**
- * Supprime TOUS les caches applicatifs.
+ * Supprime TOUS les caches de données applicatives.
  * ⚠️ À appeler impérativement à la déconnexion : sans cela, les données
  * de santé du compte précédent restent lisibles sur un appareil partagé.
+ *
+ * Les préférences d'appareil (son des notifications, thème) sont
+ * volontairement conservées : ce sont des réglages du téléphone,
+ * pas des données personnelles, et les réinitialiser à chaque
+ * déconnexion serait pénible pour l'utilisateur.
  */
+const PRESERVED_KEYS = ['sante_plus_preferences', 'sante_plus_theme'];
+
 export const clearAllCaches = (): void => {
   try {
     const keys: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k && k.startsWith(CACHE_PREFIX)) keys.push(k);
+      if (!k) continue;
+      if (PRESERVED_KEYS.includes(k)) continue;
+      if (k.startsWith(CACHE_PREFIX)) keys.push(k);
     }
     keys.forEach((k) => localStorage.removeItem(k));
   } catch {

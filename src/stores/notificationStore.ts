@@ -5,34 +5,27 @@ import { supabase } from '@/lib/supabase';
 import type { Notification } from '@/types';
 import { useAuthStore } from './authStore';
 import { playNotificationSound, updateNotificationBadge } from '@/services/notificationService';
+import {
+  readCache,
+  writeCache,
+  invalidateCache as removeCacheEntry,
+  isOffline,
+  CACHE_KEYS,
+  CACHE_TTL,
+} from '@/lib/cache';
 
  
-const NOTIFICATIONS_CACHE_KEY = 'sante_plus_notifications_cache';
-const CACHE_DURATION = 30000;
+// ============================================================
+// CACHE — délégué au module centralisé src/lib/cache.ts
+// ============================================================
 
-const getCachedNotifications = (): { data: Notification[]; timestamp: number } | null => {
-  try {
-    const cached = localStorage.getItem(NOTIFICATIONS_CACHE_KEY);
-    if (cached) return JSON.parse(cached);
-    return null;
-  } catch { return null; }
-};
+const getCachedNotifications = (userId?: string) =>
+  readCache<Notification[]>(CACHE_KEYS.NOTIFICATIONS, CACHE_TTL.SHORT, userId);
 
-const setCachedNotifications = (notifications: Notification[]) => {
-  try {
-    localStorage.setItem(NOTIFICATIONS_CACHE_KEY, JSON.stringify({
-      data: notifications,
-      timestamp: Date.now(),
-    }));
-  } catch { /* ignore */ }
-};
+const setCachedNotifications = (notifications: Notification[], userId?: string) =>
+  writeCache(CACHE_KEYS.NOTIFICATIONS, notifications, userId);
 
-const clearCachedNotifications = () => {
-  try {
-    localStorage.removeItem(NOTIFICATIONS_CACHE_KEY);
-    console.log('🗑️ Cache notifications invalidé');
-  } catch { /* ignore */ }
-};
+const clearCachedNotifications = () => removeCacheEntry(CACHE_KEYS.NOTIFICATIONS);
 
 // ✅ AFFICHER LA NOTIFICATION SYSTÈME 
 async function showSystemNotification(notification: Notification) {
@@ -86,6 +79,8 @@ interface NotificationState {
   notificationsEnabled: boolean;
   isInitialized: boolean;
   lastFetch: number | null;
+  isStaleData: boolean;
+  cacheTimestamp: number | null;
   isCacheInvalidated: boolean;
   error: string | null;
 
@@ -126,6 +121,8 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   notificationsEnabled: initializeNotifications(),
   isInitialized: false,
   lastFetch: null,
+  isStaleData: false,
+  cacheTimestamp: null,
   isCacheInvalidated: false,
   error: null,
 
@@ -219,51 +216,67 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     }
   },
 
+  // ============================================================
+  // CHARGEMENT DES NOTIFICATIONS — « stale-while-revalidate »
+  // ============================================================
+  // Voir src/lib/cache.ts pour le détail de la stratégie.
   fetchNotifications: async (force = false) => {
     const state = get();
+    if (state.isLoading) return;
 
-    if (state.isLoading) {
-      console.log('ℹ️ Déjà en cours de chargement, skip...');
+    if (state.isCacheInvalidated) force = true;
+
+    const { user } = useAuthStore.getState();
+    if (!user) {
+      set({ notifications: [], unreadCount: 0, isLoading: false, isInitialized: true });
       return;
     }
 
-    if (state.isCacheInvalidated) {
-      force = true;
-    }
+    const cached = getCachedNotifications(user.id);
 
-    if (!force && state.lastFetch && (Date.now() - state.lastFetch < CACHE_DURATION)) {
-      console.log('📦 Utilisation du cache mémoire notifications');
+    const applyCached = (isStale: boolean) => {
+      if (!cached) return;
+      const unread = cached.data.filter((n) => !n.is_read).length || 0;
+      updateNotificationBadge(unread);
+      set({
+        notifications: cached.data,
+        unreadCount: unread,
+        isLoading: false,
+        isInitialized: true,
+        lastFetch: cached.timestamp,
+        cacheTimestamp: cached.timestamp,
+        isStaleData: isStale,
+        isCacheInvalidated: false,
+        error: null,
+      });
+    };
+
+    // ── 1. Cache frais ───────────────────────────────────────
+    if (!force && cached && !cached.isStale) {
+      applyCached(false);
       return;
     }
 
-    if (!force) {
-      const cached = getCachedNotifications();
-      if (cached && (Date.now() - cached.timestamp < CACHE_DURATION)) {
-        console.log('📦 Utilisation du cache localStorage notifications');
-        const unread = cached.data.filter((n) => !n.is_read).length || 0;
-        updateNotificationBadge(unread);
-        set({
-          notifications: cached.data,
-          unreadCount: unread,
-          isLoading: false,
-          isInitialized: true,
-          lastFetch: cached.timestamp,
-          isCacheInvalidated: false,
-          error: null,
-        });
-        return;
+    // ── 2. Hors ligne : servir le cache quel que soit son âge ──
+    if (isOffline()) {
+      if (cached) {
+        applyCached(true);
+      } else {
+        set({ isLoading: false, isInitialized: true, error: 'Aucune donnée disponible hors ligne.' });
       }
+      return;
     }
 
+    // ── 3. Cache périmé mais en ligne : affichage immédiat ────
+    if (cached && cached.data.length > 0) {
+      applyCached(true);
+    } else {
+      set({ isLoading: true });
+    }
+
+    // ── 4. Rechargement réseau ───────────────────────────────
     try {
-      set({ isLoading: true, error: null, isCacheInvalidated: false });
-
-      const { user } = useAuthStore.getState();
-
-      if (!user) {
-        set({ notifications: [], unreadCount: 0, isLoading: false, isInitialized: true });
-        return;
-      }
+      set({ error: null, isCacheInvalidated: false });
 
       const { data, error } = await supabase
         .from('notifications')
@@ -278,7 +291,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       const unread = notifications.filter((n) => !n.is_read).length || 0;
 
       updateNotificationBadge(unread);
-      setCachedNotifications(notifications);
+      setCachedNotifications(notifications, user.id);
 
       set({
         notifications,
@@ -286,25 +299,14 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
         isLoading: false,
         isInitialized: true,
         lastFetch: Date.now(),
+        cacheTimestamp: Date.now(),
+        isStaleData: false,
         isCacheInvalidated: false,
         error: null,
       });
     } catch (error) {
-      console.error('❌ Fetch notifications error:', error);
-
-      const cached = getCachedNotifications();
       if (cached && cached.data.length > 0) {
-        const unread = cached.data.filter((n) => !n.is_read).length || 0;
-        updateNotificationBadge(unread);
-        set({
-          notifications: cached.data,
-          unreadCount: unread,
-          isLoading: false,
-          isInitialized: true,
-          lastFetch: cached.timestamp,
-          isCacheInvalidated: false,
-          error: error instanceof Error ? error.message : 'Erreur de chargement (cache utilisé)',
-        });
+        applyCached(true);
       } else {
         set({
           isLoading: false,

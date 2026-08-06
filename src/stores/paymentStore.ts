@@ -4,6 +4,14 @@ import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import { Subscription, Payment } from '@/types';
 import { useAuthStore } from './authStore';
+import {
+  readCache,
+  writeCache,
+  invalidateCache as removeCacheEntry,
+  isOffline,
+  CACHE_KEYS,
+  CACHE_TTL,
+} from '@/lib/cache';
 
 // ✅ IMPORTER LES HELPERS
 import {
@@ -43,57 +51,23 @@ interface CreatePaymentData {
 // HELPERS DE CACHE
 // =============================================
 
-const SUBSCRIPTIONS_CACHE_KEY = 'sante_plus_subscriptions_cache';
-const PAYMENTS_CACHE_KEY = 'sante_plus_payments_cache';
-const CACHE_DURATION = 60000; // 1 minute
+// Cache délégué au module centralisé src/lib/cache.ts
 
-const getCachedSubscriptions = (): { data: Subscription[]; timestamp: number } | null => {
-  try {
-    const cached = localStorage.getItem(SUBSCRIPTIONS_CACHE_KEY);
-    if (cached) return JSON.parse(cached);
-    return null;
-  } catch { return null; }
-};
+const getCachedSubscriptions = (userId?: string) =>
+  readCache<Subscription[]>(CACHE_KEYS.SUBSCRIPTIONS, CACHE_TTL.DEFAULT, userId);
 
-const setCachedSubscriptions = (subscriptions: Subscription[]) => {
-  try {
-    localStorage.setItem(SUBSCRIPTIONS_CACHE_KEY, JSON.stringify({
-      data: subscriptions,
-      timestamp: Date.now(),
-    }));
-  } catch { /* ignore */ }
-};
+const setCachedSubscriptions = (subscriptions: Subscription[], userId?: string) =>
+  writeCache(CACHE_KEYS.SUBSCRIPTIONS, subscriptions, userId);
 
-const clearCachedSubscriptions = () => {
-  try {
-    localStorage.removeItem(SUBSCRIPTIONS_CACHE_KEY);
-    console.log('🗑️ Cache abonnements invalidé');
-  } catch { /* ignore */ }
-};
+const clearCachedSubscriptions = () => removeCacheEntry(CACHE_KEYS.SUBSCRIPTIONS);
 
-const getCachedPayments = (): { data: Payment[]; timestamp: number } | null => {
-  try {
-    const cached = localStorage.getItem(PAYMENTS_CACHE_KEY);
-    if (cached) return JSON.parse(cached);
-    return null;
-  } catch { return null; }
-};
+const getCachedPayments = (userId?: string) =>
+  readCache<Payment[]>('payments_cache', CACHE_TTL.DEFAULT, userId);
 
-const setCachedPayments = (payments: Payment[]) => {
-  try {
-    localStorage.setItem(PAYMENTS_CACHE_KEY, JSON.stringify({
-      data: payments,
-      timestamp: Date.now(),
-    }));
-  } catch { /* ignore */ }
-};
+const setCachedPayments = (payments: Payment[], userId?: string) =>
+  writeCache('payments_cache', payments, userId);
 
-const clearCachedPayments = () => {
-  try {
-    localStorage.removeItem(PAYMENTS_CACHE_KEY);
-    console.log('🗑️ Cache paiements invalidé');
-  } catch { /* ignore */ }
-};
+const clearCachedPayments = () => removeCacheEntry('payments_cache');
 
 // =============================================
 // STORE
@@ -106,6 +80,8 @@ interface PaymentState {
   error: string | null;
   isInitialized: boolean;
   lastFetch: number | null;
+  isStaleData: boolean;
+  cacheTimestamp: number | null;
   isCacheInvalidated: boolean;
 
   fetchSubscriptions: (force?: boolean) => Promise<void>;
@@ -129,6 +105,8 @@ export const usePaymentStore = create<PaymentState>((set, get) => ({
   error: null,
   isInitialized: false,
   lastFetch: null,
+  isStaleData: false,
+  cacheTimestamp: null,
   isCacheInvalidated: false,
 
   invalidateCache: () => {
@@ -165,35 +143,60 @@ export const usePaymentStore = create<PaymentState>((set, get) => ({
       force = true;
     }
 
-    if (!force && state.lastFetch && (Date.now() - state.lastFetch < CACHE_DURATION)) {
-      console.log('📦 Utilisation du cache mémoire abonnements');
+    const { user } = useAuthStore.getState();
+    if (!user) {
+      set({ subscriptions: [], isLoading: false, isInitialized: true });
       return;
     }
 
-    if (!force) {
-      const cached = getCachedSubscriptions();
-      if (cached && (Date.now() - cached.timestamp < CACHE_DURATION)) {
-        console.log('📦 Utilisation du cache localStorage abonnements');
-        set({ 
-          subscriptions: cached.data, 
-          isLoading: false, 
+    const cached = getCachedSubscriptions(user.id);
+
+    // ── 1. Cache frais ───────────────────────────────────────
+    if (!force && cached && !cached.isStale) {
+      set({
+        subscriptions: cached.data,
+        isLoading: false,
+        isInitialized: true,
+        lastFetch: cached.timestamp,
+        cacheTimestamp: cached.timestamp,
+        isStaleData: false,
+        isCacheInvalidated: false,
+      });
+      return;
+    }
+
+    // ── 2. Hors ligne ────────────────────────────────────────
+    if (isOffline()) {
+      if (cached) {
+        set({
+          subscriptions: cached.data,
+          isLoading: false,
           isInitialized: true,
-          lastFetch: cached.timestamp,
-          isCacheInvalidated: false,
+          cacheTimestamp: cached.timestamp,
+          isStaleData: true,
+          error: null,
         });
-        return;
+      } else {
+        set({ isLoading: false, isInitialized: true, error: 'Aucune donnée disponible hors ligne.' });
       }
+      return;
+    }
+
+    // ── 3. Cache périmé mais en ligne : affichage immédiat ────
+    if (cached && cached.data.length > 0) {
+      set({
+        subscriptions: cached.data,
+        cacheTimestamp: cached.timestamp,
+        isStaleData: true,
+        isInitialized: true,
+        isLoading: false,
+      });
+    } else {
+      set({ isLoading: true });
     }
 
     try {
-      set({ isLoading: true, error: null, isCacheInvalidated: false });
-
-      const { user } = useAuthStore.getState();
-
-      if (!user) {
-        set({ subscriptions: [], isLoading: false, isInitialized: true });
-        return;
-      }
+      set({ error: null, isCacheInvalidated: false });
 
       // ✅ Récupérer les abonnements du compte (user_id)
       const { data, error } = await supabase
@@ -209,27 +212,28 @@ export const usePaymentStore = create<PaymentState>((set, get) => ({
 
       const subscriptions = data || [];
 
-      setCachedSubscriptions(subscriptions);
+      setCachedSubscriptions(subscriptions, user.id);
       
       set({
         subscriptions,
         isLoading: false,
         isInitialized: true,
         lastFetch: Date.now(),
+        cacheTimestamp: Date.now(),
+        isStaleData: false,
         isCacheInvalidated: false,
       });
     } catch (error: any) {
       console.error('Fetch subscriptions error:', error);
       
-      const cached = getCachedSubscriptions();
       if (cached && cached.data.length > 0) {
         set({
           subscriptions: cached.data,
           isLoading: false,
           isInitialized: true,
-          lastFetch: cached.timestamp,
-          error: error?.message || 'Erreur de chargement (cache utilisé)',
-          isCacheInvalidated: false,
+          cacheTimestamp: cached.timestamp,
+          isStaleData: true,
+          error: null,
         });
       } else {
         set({
@@ -256,35 +260,60 @@ export const usePaymentStore = create<PaymentState>((set, get) => ({
       force = true;
     }
 
-    if (!force && state.lastFetch && (Date.now() - state.lastFetch < CACHE_DURATION)) {
-      console.log('📦 Utilisation du cache mémoire paiements');
+    const { user } = useAuthStore.getState();
+    if (!user) {
+      set({ payments: [], isLoading: false, isInitialized: true });
       return;
     }
 
-    if (!force) {
-      const cached = getCachedPayments();
-      if (cached && (Date.now() - cached.timestamp < CACHE_DURATION)) {
-        console.log('📦 Utilisation du cache localStorage paiements');
-        set({ 
-          payments: cached.data, 
-          isLoading: false, 
+    const cached = getCachedPayments(user.id);
+
+    // ── 1. Cache frais ───────────────────────────────────────
+    if (!force && cached && !cached.isStale) {
+      set({
+        payments: cached.data,
+        isLoading: false,
+        isInitialized: true,
+        lastFetch: cached.timestamp,
+        cacheTimestamp: cached.timestamp,
+        isStaleData: false,
+        isCacheInvalidated: false,
+      });
+      return;
+    }
+
+    // ── 2. Hors ligne ────────────────────────────────────────
+    if (isOffline()) {
+      if (cached) {
+        set({
+          payments: cached.data,
+          isLoading: false,
           isInitialized: true,
-          lastFetch: cached.timestamp,
-          isCacheInvalidated: false,
+          cacheTimestamp: cached.timestamp,
+          isStaleData: true,
+          error: null,
         });
-        return;
+      } else {
+        set({ isLoading: false, isInitialized: true, error: 'Aucune donnée disponible hors ligne.' });
       }
+      return;
+    }
+
+    // ── 3. Cache périmé mais en ligne : affichage immédiat ────
+    if (cached && cached.data.length > 0) {
+      set({
+        payments: cached.data,
+        cacheTimestamp: cached.timestamp,
+        isStaleData: true,
+        isInitialized: true,
+        isLoading: false,
+      });
+    } else {
+      set({ isLoading: true });
     }
 
     try {
-      set({ isLoading: true, error: null, isCacheInvalidated: false });
-
-      const { user } = useAuthStore.getState();
-
-      if (!user) {
-        set({ payments: [], isLoading: false, isInitialized: true });
-        return;
-      }
+      set({ error: null, isCacheInvalidated: false });
 
       const { data, error } = await supabase
         .from('paiements')
@@ -310,27 +339,28 @@ export const usePaymentStore = create<PaymentState>((set, get) => ({
 
       const payments = paymentsWithUser || [];
 
-      setCachedPayments(payments);
+      setCachedPayments(payments, user.id);
       
       set({
         payments,
         isLoading: false,
         isInitialized: true,
         lastFetch: Date.now(),
+        cacheTimestamp: Date.now(),
+        isStaleData: false,
         isCacheInvalidated: false,
       });
     } catch (error: any) {
       console.error('Fetch payments error:', error);
       
-      const cached = getCachedPayments();
       if (cached && cached.data.length > 0) {
         set({
           payments: cached.data,
           isLoading: false,
           isInitialized: true,
-          lastFetch: cached.timestamp,
-          error: error?.message || 'Erreur de chargement (cache utilisé)',
-          isCacheInvalidated: false,
+          cacheTimestamp: cached.timestamp,
+          isStaleData: true,
+          error: null,
         });
       } else {
         set({

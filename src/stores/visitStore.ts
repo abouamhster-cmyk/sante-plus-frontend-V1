@@ -9,7 +9,7 @@ import api from '@/lib/api';
 import {
   readCache,
   writeCache,
-  invalidateCache,
+  invalidateCache as removeCacheEntry,
   isOffline,
   CACHE_KEYS,
   CACHE_TTL,
@@ -52,7 +52,7 @@ const getCachedVisits = (userId?: string) =>
 const setCachedVisits = (visits: Visit[], userId?: string) =>
   writeCache(CACHE_KEYS.VISITS, visits, userId);
 
-const clearCachedVisits = () => invalidateCache(CACHE_KEYS.VISITS);
+const clearCachedVisits = () => removeCacheEntry(CACHE_KEYS.VISITS);
 
 interface VisitState {
   visits: Visit[];

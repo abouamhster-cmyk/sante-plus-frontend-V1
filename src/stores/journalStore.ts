@@ -4,63 +4,37 @@ import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import { JournalEntry, JournalStats } from '@/types';
 import { useAuthStore } from './authStore';
+import {
+  readCache,
+  writeCache,
+  invalidateCache as removeCacheEntry,
+  isOffline,
+  CACHE_KEYS,
+  CACHE_TTL,
+} from '@/lib/cache';
 
  
 // =============================================
 // HELPERS DE CACHE
 // =============================================
 
-const JOURNAL_ENTRIES_CACHE_KEY = 'sante_plus_journal_entries_cache';
-const JOURNAL_STATS_CACHE_KEY = 'sante_plus_journal_stats_cache';
-const CACHE_DURATION = 60000; // 1 minute
+// Cache délégué au module centralisé src/lib/cache.ts
 
-const getCachedEntries = (): { data: JournalEntry[]; timestamp: number } | null => {
-  try {
-    const cached = localStorage.getItem(JOURNAL_ENTRIES_CACHE_KEY);
-    if (cached) return JSON.parse(cached);
-    return null;
-  } catch { return null; }
-};
+const getCachedEntries = (userId?: string) =>
+  readCache<JournalEntry[]>(CACHE_KEYS.JOURNAL_ENTRIES, CACHE_TTL.DEFAULT, userId);
 
-const setCachedEntries = (entries: JournalEntry[]) => {
-  try {
-    localStorage.setItem(JOURNAL_ENTRIES_CACHE_KEY, JSON.stringify({
-      data: entries,
-      timestamp: Date.now(),
-    }));
-  } catch { /* ignore */ }
-};
+const setCachedEntries = (entries: JournalEntry[], userId?: string) =>
+  writeCache(CACHE_KEYS.JOURNAL_ENTRIES, entries, userId);
 
-const clearCachedEntries = () => {
-  try {
-    localStorage.removeItem(JOURNAL_ENTRIES_CACHE_KEY);
-    console.log('🗑️ Cache journal entries invalidé');
-  } catch { /* ignore */ }
-};
+const clearCachedEntries = () => removeCacheEntry(CACHE_KEYS.JOURNAL_ENTRIES);
 
-const getCachedStats = (): { data: JournalStats; timestamp: number } | null => {
-  try {
-    const cached = localStorage.getItem(JOURNAL_STATS_CACHE_KEY);
-    if (cached) return JSON.parse(cached);
-    return null;
-  } catch { return null; }
-};
+const getCachedStats = (userId?: string) =>
+  readCache<JournalStats>(CACHE_KEYS.JOURNAL_STATS, CACHE_TTL.DEFAULT, userId);
 
-const setCachedStats = (stats: JournalStats) => {
-  try {
-    localStorage.setItem(JOURNAL_STATS_CACHE_KEY, JSON.stringify({
-      data: stats,
-      timestamp: Date.now(),
-    }));
-  } catch { /* ignore */ }
-};
+const setCachedStats = (stats: JournalStats, userId?: string) =>
+  writeCache(CACHE_KEYS.JOURNAL_STATS, stats, userId);
 
-const clearCachedStats = () => {
-  try {
-    localStorage.removeItem(JOURNAL_STATS_CACHE_KEY);
-    console.log('🗑️ Cache journal stats invalidé');
-  } catch { /* ignore */ }
-};
+const clearCachedStats = () => removeCacheEntry(CACHE_KEYS.JOURNAL_STATS);
 
 // =============================================
 // STORE
@@ -73,6 +47,8 @@ interface JournalState {
   error: string | null;
   isInitialized: boolean;
   lastFetch: number | null;
+  isStaleData: boolean;
+  cacheTimestamp: number | null;
   isCacheInvalidated: boolean;
   
   fetchEntries: (force?: boolean, patientId?: string) => Promise<void>;
@@ -93,6 +69,8 @@ export const useJournalStore = create<JournalState>((set, get) => ({
   error: null,
   isInitialized: false,
   lastFetch: null,
+  isStaleData: false,
+  cacheTimestamp: null,
   isCacheInvalidated: false,
 
   invalidateCache: () => {
@@ -131,34 +109,60 @@ export const useJournalStore = create<JournalState>((set, get) => ({
       force = true;
     }
 
-    if (!force && state.lastFetch && (Date.now() - state.lastFetch < CACHE_DURATION)) {
-      console.log('📦 Utilisation du cache mémoire journal entries');
+    const { user, profile } = useAuthStore.getState();
+    if (!user) {
+      set({ entries: [], isLoading: false, isInitialized: true });
       return;
     }
 
-    if (!force) {
-      const cached = getCachedEntries();
-      if (cached && (Date.now() - cached.timestamp < CACHE_DURATION)) {
-        console.log('📦 Utilisation du cache localStorage journal entries');
-        set({ 
-          entries: cached.data, 
-          isLoading: false, 
+    const cached = getCachedEntries(user.id);
+
+    // ── 1. Cache frais ───────────────────────────────────────
+    if (!force && cached && !cached.isStale) {
+      set({
+        entries: cached.data,
+        isLoading: false,
+        isInitialized: true,
+        lastFetch: cached.timestamp,
+        cacheTimestamp: cached.timestamp,
+        isStaleData: false,
+        isCacheInvalidated: false,
+      });
+      return;
+    }
+
+    // ── 2. Hors ligne : servir le cache quel que soit son âge ──
+    if (isOffline()) {
+      if (cached) {
+        set({
+          entries: cached.data,
+          isLoading: false,
           isInitialized: true,
-          lastFetch: cached.timestamp,
-          isCacheInvalidated: false,
+          cacheTimestamp: cached.timestamp,
+          isStaleData: true,
+          error: null,
         });
-        return;
+      } else {
+        set({ isLoading: false, isInitialized: true, error: 'Aucune donnée disponible hors ligne.' });
       }
+      return;
+    }
+
+    // ── 3. Cache périmé mais en ligne : affichage immédiat ────
+    if (cached && cached.data.length > 0) {
+      set({
+        entries: cached.data,
+        cacheTimestamp: cached.timestamp,
+        isStaleData: true,
+        isInitialized: true,
+        isLoading: false,
+      });
+    } else {
+      set({ isLoading: true });
     }
 
     try {
-      set({ isLoading: true, error: null, isCacheInvalidated: false });
-      
-      const { user, profile } = useAuthStore.getState();
-      if (!user) {
-        set({ entries: [], isLoading: false, isInitialized: true });
-        return;
-      }
+      set({ error: null, isCacheInvalidated: false });
 
       // ✅ ÉTAPE 1 : Récupérer les visites
       let query = supabase
@@ -298,27 +302,27 @@ export const useJournalStore = create<JournalState>((set, get) => ({
       });
 
       // ✅ Mettre en cache
-      setCachedEntries(entries);
+      setCachedEntries(entries, user.id);
       
       set({ 
         entries, 
         isLoading: false,
         isInitialized: true,
         lastFetch: Date.now(),
+        cacheTimestamp: Date.now(),
+        isStaleData: false,
         isCacheInvalidated: false,
       });
     } catch (error: any) {
-      console.error('❌ Fetch journal entries error:', error);
       
-      const cached = getCachedEntries();
       if (cached && cached.data.length > 0) {
         set({
           entries: cached.data,
           isLoading: false,
           isInitialized: true,
-          lastFetch: cached.timestamp,
-          error: error.message || 'Erreur de chargement (cache utilisé)',
-          isCacheInvalidated: false,
+          cacheTimestamp: cached.timestamp,
+          isStaleData: true,
+          error: null,
         });
       } else {
         set({ error: error.message, isLoading: false, isInitialized: true });
@@ -345,24 +349,20 @@ export const useJournalStore = create<JournalState>((set, get) => ({
       force = true;
     }
 
-    if (!force && state.lastFetch && (Date.now() - state.lastFetch < CACHE_DURATION)) {
-      console.log('📦 Utilisation du cache mémoire journal stats');
-      return;
-    }
+    const cachedStats = getCachedStats();
 
-    if (!force) {
-      const cached = getCachedStats();
-      if (cached && (Date.now() - cached.timestamp < CACHE_DURATION)) {
-        console.log('📦 Utilisation du cache localStorage journal stats');
-        set({ 
-          stats: cached.data, 
-          isLoading: false, 
-          isInitialized: true,
-          lastFetch: cached.timestamp,
-          isCacheInvalidated: false,
-        });
-        return;
-      }
+    // Cache frais, ou hors ligne : on sert le cache.
+    if (cachedStats && (!force && !cachedStats.isStale || isOffline())) {
+      set({
+        stats: cachedStats.data,
+        isLoading: false,
+        isInitialized: true,
+        lastFetch: cachedStats.timestamp,
+        cacheTimestamp: cachedStats.timestamp,
+        isStaleData: cachedStats.isStale,
+        isCacheInvalidated: false,
+      });
+      return;
     }
 
     try {
@@ -414,7 +414,7 @@ export const useJournalStore = create<JournalState>((set, get) => ({
         actions_frequency: actionsFrequency,
       };
 
-      setCachedStats(stats);
+      setCachedStats(stats, user.id);
       
       set({
         stats,
@@ -426,15 +426,14 @@ export const useJournalStore = create<JournalState>((set, get) => ({
     } catch (error: any) {
       console.error('❌ Fetch stats error:', error);
       
-      const cached = getCachedStats();
-      if (cached && cached.data) {
+      if (cachedStats && cachedStats.data) {
         set({
-          stats: cached.data,
+          stats: cachedStats.data,
           isLoading: false,
           isInitialized: true,
-          lastFetch: cached.timestamp,
-          error: error.message || 'Erreur de chargement (cache utilisé)',
-          isCacheInvalidated: false,
+          cacheTimestamp: cachedStats.timestamp,
+          isStaleData: true,
+          error: null,
         });
       } else {
         set({ error: error.message, isLoading: false, isInitialized: true });

@@ -5,6 +5,14 @@ import { supabase } from '@/lib/supabase';
 import { Order, OrderStatus } from '@/types';
 import { useAuthStore } from './authStore';
 import api from '@/lib/api';
+import {
+  readCache,
+  writeCache,
+  invalidateCache as removeCacheEntry,
+  isOffline,
+  CACHE_KEYS,
+  CACHE_TTL,
+} from '@/lib/cache';
 
 // ✅ URL UNIQUE
 const API_URL = import.meta.env.VITE_API_URL || 'https://app-react-back.onrender.com/api';
@@ -18,29 +26,20 @@ const MAX_ORDERS_IN_PROGRESS = 2;
 // =============================================
 // HELPERS DE CACHE
 // =============================================
+// Délégués au module centralisé src/lib/cache.ts.
+// ⚠️ Ces fonctions écrivaient sur la clé brute 'sante_plus_orders_cache'
+// tandis que fetchOrders lit désormais via CACHE_KEYS.ORDERS : sans cette
+// redirection, `clearCachedOrders()` — appelé après chaque création,
+// annulation ou changement de statut — aurait vidé une clé inexistante
+// et le cache ne se serait jamais invalidé après une modification.
 
-const getCachedOrders = (): { data: Order[]; timestamp: number } | null => {
-  try {
-    const cached = localStorage.getItem('sante_plus_orders_cache');
-    if (cached) return JSON.parse(cached);
-    return null;
-  } catch { return null; }
-};
+const getCachedOrders = (userId?: string) =>
+  readCache<Order[]>(CACHE_KEYS.ORDERS, CACHE_TTL.DEFAULT, userId);
 
-const setCachedOrders = (orders: Order[]) => {
-  try {
-    localStorage.setItem('sante_plus_orders_cache', JSON.stringify({
-      data: orders,
-      timestamp: Date.now(),
-    }));
-  } catch { /* ignore */ }
-};
+const setCachedOrders = (orders: Order[], userId?: string) =>
+  writeCache(CACHE_KEYS.ORDERS, orders, userId);
 
-const clearCachedOrders = () => {
-  try {
-    localStorage.removeItem('sante_plus_orders_cache');
-  } catch { /* ignore */ }
-};
+const clearCachedOrders = () => removeCacheEntry(CACHE_KEYS.ORDERS);
 
 // =============================================
 // ORDER STORE
@@ -54,6 +53,10 @@ interface OrderState {
   error: string | null;
   isInitialized: boolean;
   lastFetch: number | null;
+  /** true quand les données viennent d'un cache périmé (hors ligne). */
+  isStaleData: boolean;
+  /** Date du cache affiché, pour l'indiquer à l'utilisateur. */
+  cacheTimestamp: number | null;
   isCacheInvalidated: boolean;
   total: number;
   hasMore: boolean;
@@ -101,6 +104,8 @@ export const useOrderStore = create<OrderState>((set, get) => ({
   error: null,
   isInitialized: false,
   lastFetch: null,
+  isStaleData: false,
+  cacheTimestamp: null,
   isCacheInvalidated: false,
   total: 0,
   hasMore: false,
@@ -177,27 +182,108 @@ export const useOrderStore = create<OrderState>((set, get) => ({
     };
   },
 
+  // ============================================================
+  // CHARGEMENT DES COMMANDES — « stale-while-revalidate »
+  // ============================================================
+  // Ce store n'avait AUCUN cache local : hors ligne, la liste des
+  // commandes était entièrement vide, même celles déjà consultées.
+  // Voir src/lib/cache.ts pour le détail de la stratégie.
   fetchOrders: async (force = false) => {
     const state = get();
     if (state.isLoading && !force) return;
 
+    if (state.isCacheInvalidated) force = true;
+
+    const { user } = useAuthStore.getState();
+    if (!user) {
+      set({ orders: [], isLoading: false, isInitialized: true });
+      return;
+    }
+
+    const cached = readCache<Order[]>(CACHE_KEYS.ORDERS, CACHE_TTL.DEFAULT, user.id);
+
+    // ── 1. Cache frais ───────────────────────────────────────
+    if (!force && cached && !cached.isStale) {
+      set({
+        orders: cached.data,
+        isLoading: false,
+        isInitialized: true,
+        lastFetch: cached.timestamp,
+        cacheTimestamp: cached.timestamp,
+        isStaleData: false,
+        isCacheInvalidated: false,
+      });
+      return;
+    }
+
+    // ── 2. Hors ligne : servir le cache quel que soit son âge ──
+    if (isOffline()) {
+      if (cached) {
+        set({
+          orders: cached.data,
+          isLoading: false,
+          isInitialized: true,
+          cacheTimestamp: cached.timestamp,
+          isStaleData: true,
+          error: null,
+        });
+      } else {
+        set({
+          isLoading: false,
+          isInitialized: true,
+          error: 'Aucune donnée disponible hors ligne.',
+        });
+      }
+      return;
+    }
+
+    // ── 3. Cache périmé mais en ligne : affichage immédiat ────
+    if (cached && cached.data.length > 0) {
+      set({
+        orders: cached.data,
+        cacheTimestamp: cached.timestamp,
+        isStaleData: true,
+        isInitialized: true,
+        isLoading: false,
+      });
+    } else {
+      set({ isLoading: true });
+    }
+
+    // ── 4. Rechargement réseau ───────────────────────────────
     try {
-      set({ isLoading: true, error: null });
+      set({ error: null, isCacheInvalidated: false });
+
       const response = await api.get('/orders', { params: { limit: 20, offset: 0 } });
       const ordersData = response.data || [];
       const total = parseInt(response.headers['x-total-count'] || '0', 10);
 
-      set({ 
+      writeCache(CACHE_KEYS.ORDERS, ordersData, user.id);
+
+      set({
         orders: ordersData,
         total,
         hasMore: ordersData.length < total,
         isLoading: false,
         isInitialized: true,
         lastFetch: Date.now(),
+        cacheTimestamp: Date.now(),
+        isStaleData: false,
         isCacheInvalidated: false,
       });
     } catch (error: any) {
-      set({ error: error.message, isLoading: false });
+      if (cached && cached.data.length > 0) {
+        set({
+          orders: cached.data,
+          isLoading: false,
+          isInitialized: true,
+          cacheTimestamp: cached.timestamp,
+          isStaleData: true,
+          error: null,
+        });
+      } else {
+        set({ error: error.message, isLoading: false, isInitialized: true });
+      }
     }
   },
 
