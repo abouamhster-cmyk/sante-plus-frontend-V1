@@ -55,6 +55,8 @@ const VisitDetailPage = () => {
     startVisit,
     completeVisit,
     cancelVisit,
+    approveVisit,
+    refuseVisit,
     isLoading,
     fetchVisits,
   } = useVisitStore();
@@ -126,6 +128,48 @@ const VisitDetailPage = () => {
   }, [showAssignModal, fetchAidants]);
 
   // ✅ CAPTURE DU POINT DE DÉPART DE MISSION EN DIRECT (CHECKPOINT)
+  // ============================================================
+  // ACCEPTER / REFUSER — l'aidant assigné répond à la mission
+  // ============================================================
+  // Ces boutons manquaient : l'aidant ne voyait que « Démarrer », sans
+  // pouvoir signaler qu'il prend la mission ni qu'il ne peut pas l'assurer.
+  // La famille restait dans l'incertitude jusqu'au jour de la visite.
+  const handleApprove = async () => {
+    if (isActionPending.current) return;
+    isActionPending.current = true;
+    try {
+      await approveVisit(id!);
+      toast.success('Mission acceptée — la famille a été prévenue');
+      await fetchVisitById(id!);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Erreur lors de l\'acceptation');
+    } finally {
+      isActionPending.current = false;
+    }
+  };
+
+  const handleRefuse = async () => {
+    if (isActionPending.current) return;
+    const ok = await confirmDialog({
+      title: 'Refuser cette mission ?',
+      message: "La visite repartira en attente d'attribution et l'administration sera prévenue.",
+      confirmLabel: 'Refuser',
+      variant: 'danger',
+    });
+    if (!ok) return;
+
+    isActionPending.current = true;
+    try {
+      await refuseVisit(id!, '');
+      toast.success('Mission refusée — l\'administration va réassigner');
+      navigate('/app/missions');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Erreur lors du refus');
+    } finally {
+      isActionPending.current = false;
+    }
+  };
+
   const handleStart = async () => {
     if (!id || isActionPending.current) return;
     isActionPending.current = true;
@@ -516,6 +560,30 @@ const VisitDetailPage = () => {
 
         {/* ACTIONS STATUTS */}
         <div className="flex flex-wrap gap-1.5">
+          {/* L'aidant répond d'abord, il démarre ensuite. */}
+          {isAidant && (visit.status === 'planifiee' || visit.status === 'en_attente') && (
+            <>
+              <button
+                onClick={handleApprove}
+                disabled={isUpdating || isActionPending.current}
+                className="flex items-center gap-1.5 px-4 h-10 rounded-xl text-white text-xs font-bold transition hover:opacity-90 disabled:opacity-50"
+                style={{ background: '#16a34a' }}
+              >
+                <CheckCircle size={14} />
+                <span>Accepter</span>
+              </button>
+              <button
+                onClick={handleRefuse}
+                disabled={isUpdating || isActionPending.current}
+                className="flex items-center gap-1.5 px-4 h-10 rounded-xl text-xs font-bold transition hover:opacity-90 disabled:opacity-50 border-2"
+                style={{ borderColor: '#EF4444', color: '#EF4444' }}
+              >
+                <XCircle size={14} />
+                <span>Refuser</span>
+              </button>
+            </>
+          )}
+
           {isPendingApproval && isAidant && (
             <button
               onClick={handleStart}
@@ -647,6 +715,79 @@ const VisitDetailPage = () => {
         <div className="lg:col-span-2 space-y-6">
 
           {/* CARTES D'INFORMATIONS RAPIDES */}
+          {/* ============================================================
+              AIDANT ASSIGNÉ
+              ============================================================
+              Cette carte manquait entièrement : `aidantStatus` était
+              calculé mais jamais rendu. Le résumé ne disait donc pas qui
+              devait intervenir, ni si la mission avait été acceptée.
+              On y ajoute le type d'assignation (permanente / ponctuelle)
+              et l'état de la réponse de l'aidant. */}
+          <div
+            className="bg-white rounded-2xl p-4 sm:p-5 border shadow-sm flex items-center gap-3.5"
+            style={{ borderColor: visit.aidant_id ? colors.primary + '20' : '#f59e0b40' }}
+          >
+            <span
+              className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
+              style={{
+                background: visit.aidant_id ? colors.primary + '12' : '#f59e0b15',
+                color: visit.aidant_id ? colors.primary : '#b45309',
+              }}
+            >
+              {visit.aidant_id ? <UserCheck size={18} /> : <UserPlus size={18} />}
+            </span>
+
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: colors.textLight }}>
+                Aidant en charge
+              </p>
+              <p className="text-sm font-extrabold truncate" style={{ color: colors.text }}>
+                {visit.aidant_id
+                  ? (visit.aidant?.user?.full_name || 'Aidant assigné')
+                  : 'Aucun aidant désigné'}
+              </p>
+
+              <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                {/* Type d'assignation */}
+                {visit.aidant_id && (
+                  <span
+                    className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                    style={
+                      visit.assignment_type === 'permanente'
+                        ? { background: colors.primary + '15', color: colors.primary }
+                        : { background: '#8B5CF615', color: '#7c3aed' }
+                    }
+                  >
+                    {visit.assignment_type === 'permanente' ? '📌 Permanent' : '⚡ Ponctuel'}
+                  </span>
+                )}
+
+                {/* Réponse de l'aidant */}
+                {visit.aidant_id && (
+                  visit.status === 'acceptee' || visit.approved_at ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#dcfce7', color: '#15803d' }}>
+                      ✓ Mission acceptée
+                    </span>
+                  ) : visit.refused_at ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#fee2e2', color: '#b91c1c' }}>
+                      ✕ Refusée
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#fef3c7', color: '#b45309' }}>
+                      ⏳ En attente de réponse
+                    </span>
+                  )
+                )}
+
+                {!visit.aidant_id && (
+                  <span className="text-[10px] font-medium" style={{ color: colors.textLight }}>
+                    La visite est en attente d'attribution.
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <InfoCard
               icon={<User size={15} />}

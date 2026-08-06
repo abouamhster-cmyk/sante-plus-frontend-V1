@@ -89,7 +89,7 @@ const MissionsPage = () => {
   const colors = brand.colors;
   
   // Stores
-  const { visits, fetchVisits, startVisit, startAdHocVisit, completeVisit, isLoading } = useVisitStore();
+  const { visits, fetchVisits, startVisit, startAdHocVisit, completeVisit, approveVisit, refuseVisit, isLoading } = useVisitStore();
   const { orders, fetchOrders, takeOrder, completeDelivery, isLoading: ordersLoading } = useOrderStore();
   const { assignments, fetchMyAssignments, isLoading: isAssignmentsLoading } = useAidantCatalogStore();
   const { patients, fetchPatients } = usePatientStore(); // ✅ Utilisation du store de dossiers cliniques
@@ -421,6 +421,42 @@ const MissionsPage = () => {
   };
 
   // ✅ DEPARTS DE MISSIONS PROGRAMMÉES
+  // ============================================================
+  // RÉPONDRE À UNE MISSION — accepter ou refuser
+  // ============================================================
+  // Ces actions manquaient : l'aidant ne pouvait que démarrer une visite
+  // qu'on lui avait attribuée, sans jamais pouvoir la décliner. S'il ne
+  // pouvait pas l'assurer, la famille ne l'apprenait pas.
+  const handleApproveMission = async (id: string) => {
+    if (isActionPending) return;
+    setIsActionPending(true);
+    try {
+      await approveVisit(id);
+      toast.success('Mission acceptée — la famille a été prévenue');
+      await fetchVisits(true);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || "Erreur lors de l'acceptation");
+    } finally {
+      setIsActionPending(false);
+    }
+  };
+
+  const handleRefuseMission = async (id: string) => {
+    if (isActionPending) return;
+    if (!window.confirm("Refuser cette mission ? Elle repartira en attente d'attribution et l'administration sera prévenue.")) return;
+
+    setIsActionPending(true);
+    try {
+      await refuseVisit(id, '');
+      toast.success("Mission refusée — l'administration va réassigner");
+      await fetchVisits(true);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Erreur lors du refus');
+    } finally {
+      setIsActionPending(false);
+    }
+  };
+
   const handleStartPlannedIntervention = async (id: string) => {
     if (isActionPending) return;
     setIsActionPending(true);
@@ -902,6 +938,8 @@ const MissionsPage = () => {
               colors={colors}
               aidantId={aidantId}
               onStart={() => handleStartPlannedIntervention(item.id)}
+              onApprove={() => handleApproveMission(item.id)}
+              onRefuse={() => handleRefuseMission(item.id)}
               onTakeOrder={() => handleTakeOrder(item.id)}
               onDeliver={() => {
                 setSelectedOrderForDelivery(item);
@@ -1284,6 +1322,8 @@ const MissionItemCompact = ({
   type,
   colors,
   onStart,
+  onApprove,
+  onRefuse,
   onTakeOrder,
   onDeliver,
   onView,
@@ -1294,7 +1334,11 @@ const MissionItemCompact = ({
   formatCurrency,
 }: any) => {
   const isMission = type === 'missions';
-  const isAccepted = item.status === 'acceptee' || item.status === 'planifiee';
+  // Une mission planifiée attend une réponse ; seule une mission acceptée
+  // peut être démarrée. Auparavant les deux états étaient confondus, si bien
+  // que l'aidant voyait « Démarrer » sans avoir jamais pu accepter.
+  const needsAnswer = item.status === 'planifiee' || item.status === 'en_attente';
+  const isAccepted = item.status === 'acceptee';
 
   const getPatientName = () => {
     if (item.patient) {
@@ -1333,6 +1377,27 @@ const MissionItemCompact = ({
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+          {needsAnswer && onApprove && (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); onApprove(); }}
+                className="px-3 h-8 rounded-xl text-white flex items-center justify-center gap-1 text-[10px] font-extrabold uppercase tracking-wider shadow-sm hover:opacity-90 transition-all"
+                style={{ background: '#16a34a' }}
+                title="Accepter cette mission"
+              >
+                <Check size={12} /> <span>Accepter</span>
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onRefuse(); }}
+                className="w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all hover:opacity-80"
+                style={{ borderColor: '#EF4444', color: '#EF4444' }}
+                title="Refuser cette mission"
+              >
+                <X size={12} />
+              </button>
+            </>
+          )}
+
           {isAccepted && (
             <button
               onClick={(e) => { e.stopPropagation(); onStart(); }}

@@ -241,20 +241,14 @@ const AidantsPage = () => {
 
     setProcessingId(assignmentId);
     try {
-      try {
-        await assignmentAPI.revoke(assignmentId, `Désassignation par l'admin (${profile?.full_name})`);
-      } catch (apiErr) {
-        // Fallback Supabase
-        await supabase
-          .from('aidant_assignments')
-          .update({ 
-            status: 'inactive', 
-            updated_at: new Date().toISOString(),
-            revoked_by: profile?.id,
-            revocation_reason: 'Révocation par l\'administrateur'
-          })
-          .eq('id', assignmentId);
-      }
+      // ⚠️ Le repli Supabase qui existait ici masquait l'erreur réelle de
+      // l'API : quand la révocation échouait, on ne voyait qu'un message
+      // générique sans jamais savoir pourquoi. On appelle désormais l'API
+      // seule, et on remonte son message d'erreur tel quel.
+      await assignmentAPI.revoke(
+        assignmentId,
+        `Désassignation par l'admin (${profile?.full_name || 'admin'})`
+      );
 
       toast.success(`Intervenant désassigné de ${targetName} !`);
 
@@ -277,8 +271,12 @@ const AidantsPage = () => {
 
       await fetchAidants();
     } catch (error: any) {
-      console.error('❌ Erreur désassignation:', error);
-      toast.error('Erreur lors de la désassignation');
+      const detail =
+        error?.response?.data?.error ||
+        error?.response?.data?.message ||
+        error?.message ||
+        'cause inconnue';
+      toast.error(`Désassignation impossible : ${detail}`, { duration: 6000 });
     } finally {
       setProcessingId(null);
     }
