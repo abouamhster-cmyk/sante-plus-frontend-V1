@@ -78,89 +78,42 @@ const AdminDashboardPage = () => {
     try {
       setIsLoading(true);
 
-      const [
-        { count: totalUsers },
-        { count: activeUsers },
-        { count: totalPatients },
-        { count: totalAidants },
-        { count: pendingRegistrations },
-      ] = await Promise.all([
-        supabase.from('profiles').select('*', { count: 'exact', head: true }),
-        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_active', true),
-        supabase.from('patients').select('*', { count: 'exact', head: true }),
-        supabase.from('aidants').select('*', { count: 'exact', head: true }),
-        supabase.from('inscriptions').select('*', { count: 'exact', head: true }).eq('status', 'en_attente'),
-      ]);
+      // ============================================================
+      // 📊 STATISTIQUES — UNE SEULE REQUÊTE AGRÉGÉE
+      // ============================================================
+      // AVANT : 16 requêtes, dont trois qui téléchargeaient des tables
+      // entières dans le navigateur — tous les comptes famille, toute la
+      // table de liaison, et TOUS les paiements de l'histoire (additionnés
+      // ensuite avec .reduce()). À l'échelle visée, cette page n'aurait
+      // jamais fini de charger.
+      //
+      // APRÈS : la fonction Postgres admin_dashboard_stats() calcule tout
+      // sur place — COUNT et SUM s'exécutent là où sont les données — et
+      // ne renvoie que quelques centaines d'octets de JSON.
+      const { data: s, error: statsError } = await supabase.rpc('admin_dashboard_stats');
 
-      const { data: allFamilies } = await supabase.from('profiles').select('id').eq('role', 'family');
-      const { data: familyLinks } = await supabase.from('patient_family_links').select('family_id');
-
-      const familyIdsWithPatients = new Set(familyLinks?.map((l) => l.family_id) || []);
-      const personalAccountsCount = (allFamilies || []).filter((f: any) => !familyIdsWithPatients.has(f.id)).length;
-      const totalBeneficiaires = (allFamilies?.length || 0) + (totalPatients || 0);
-
-      const { count: assignedCount } = await supabase
-        .from('aidant_assignments')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'active');
-
-      const unassignedCount = totalBeneficiaires - (assignedCount || 0);
-
-      const today = new Date().toISOString().split('T')[0];
-      const [
-        { count: visitsToday },
-        { count: visitsInProgress },
-        { count: visitsWaitingApproval },
-        { count: visitsExpired },
-        { count: pendingAidantVisits },
-      ] = await Promise.all([
-        supabase.from('visites').select('*', { count: 'exact', head: true }).eq('scheduled_date', today),
-        supabase.from('visites').select('*', { count: 'exact', head: true }).eq('status', 'en_cours'),
-        supabase.from('visites').select('*', { count: 'exact', head: true }).eq('status', 'planifiee').is('approved_at', null).is('refused_at', null),
-        supabase.from('visites').select('*', { count: 'exact', head: true }).eq('status', 'expire'),
-        supabase.from('visites').select('*', { count: 'exact', head: true }).eq('status', 'en_attente_aidant'),
-      ]);
-
-      const [
-        { count: totalOrders },
-        { count: pendingOrders },
-        { count: ordersAvailable },
-      ] = await Promise.all([
-        supabase.from('commandes').select('*', { count: 'exact', head: true }),
-        supabase.from('commandes').select('*', { count: 'exact', head: true }).in('status', ['creee', 'en_attente']),
-        supabase.from('commandes').select('*', { count: 'exact', head: true }).eq('status', 'disponible'),
-      ]);
-
-      const { data: payments } = await supabase.from('paiements').select('amount, created_at').eq('status', 'valide');
-      const totalRevenue = payments?.reduce((sum, p) => sum + Number(p.amount || 0), 0) || 0;
-
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
-
-      const monthlyPayments = payments?.filter((p) => new Date(p.created_at) >= startOfMonth) || [];
-      const monthlyRevenue = monthlyPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      if (statsError) throw statsError;
 
       setStats({
-        totalUsers: totalUsers || 0,
-        activeUsers: activeUsers || 0,
-        totalPatients: totalPatients || 0,
-        personalAccounts: personalAccountsCount,
-        totalBeneficiaires,
-        totalAidants: totalAidants || 0,
-        visitsToday: visitsToday || 0,
-        visitsInProgress: visitsInProgress || 0,
-        pendingRegistrations: pendingRegistrations || 0,
-        totalOrders: totalOrders || 0,
-        pendingOrders: pendingOrders || 0,
-        totalRevenue,
-        monthlyRevenue,
+        totalUsers:            s.totalUsers            || 0,
+        activeUsers:           s.activeUsers           || 0,
+        totalPatients:         s.totalPatients         || 0,
+        personalAccounts:      s.personalAccounts      || 0,
+        totalBeneficiaires:    s.totalBeneficiaires    || 0,
+        totalAidants:          s.totalAidants          || 0,
+        visitsToday:           s.visitsToday           || 0,
+        visitsInProgress:      s.visitsInProgress      || 0,
+        pendingRegistrations:  s.pendingRegistrations  || 0,
+        totalOrders:           s.totalOrders           || 0,
+        pendingOrders:         s.pendingOrders         || 0,
+        totalRevenue:          Number(s.totalRevenue)   || 0,
+        monthlyRevenue:        Number(s.monthlyRevenue) || 0,
         growth: 12.5,
-        visitsWaitingApproval: visitsWaitingApproval || 0,
-        visitsExpired: visitsExpired || 0,
-        unassignedCount,
-        pendingAidantVisits: pendingAidantVisits || 0,
-        availableOrders: ordersAvailable || 0,
+        visitsWaitingApproval: s.visitsWaitingApproval || 0,
+        visitsExpired:         s.visitsExpired         || 0,
+        unassignedCount:       s.unassignedCount       || 0,
+        pendingAidantVisits:   s.pendingAidantVisits   || 0,
+        availableOrders:       s.availableOrders       || 0,
       });
     } catch (error) {
       console.error('Fetch dashboard error:', error);
