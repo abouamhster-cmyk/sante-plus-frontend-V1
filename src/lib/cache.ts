@@ -156,7 +156,14 @@ export const invalidateCache = (key: string): void => {
  * pas des données personnelles, et les réinitialiser à chaque
  * déconnexion serait pénible pour l'utilisateur.
  */
-const PRESERVED_KEYS = ['sante_plus_preferences', 'sante_plus_theme'];
+const PRESERVED_KEYS = [
+  'sante_plus_preferences',
+  'sante_plus_theme',
+  // Le parcours de découverte est un acquis de l'utilisateur, pas une
+  // donnée de session : l'effacer le lui ferait revoir à chaque
+  // reconnexion. Il ne contient aucune information personnelle.
+  'sante_plus_tour_seen',
+];
 
 export const clearAllCaches = (): void => {
   try {

@@ -97,10 +97,15 @@ const fetchProfileSafe = async (userId: string): Promise<Profile | null> => {
       return cached.data;
     }
 
+    // ⚠️ Cette liste de colonnes doit rester EXHAUSTIVE.
+    // Tout champ omis ici revient `undefined` après un refreshProfile(),
+    // même s'il est correctement enregistré en base. C'est ce qui faisait
+    // réapparaître l'onboarding après une simple modification de photo :
+    // `has_seen_onboarding` manquait, donc le test `=== true` échouait.
     const result = await withTimeout(
       supabase
         .from('profiles')
-        .select('id, full_name, email, phone, role, is_active, patient_category, avatar_url, last_latitude, last_longitude, last_location_update, email_verified, phone_verified, preferences, created_at, updated_at')
+        .select('id, full_name, email, phone, role, is_active, patient_category, avatar_url, last_latitude, last_longitude, last_location_update, email_verified, phone_verified, preferences, has_seen_onboarding, created_at, updated_at')
         .eq('id', userId)
         .maybeSingle(),
       5000
@@ -130,9 +135,12 @@ const fetchProfileSafe = async (userId: string): Promise<Profile | null> => {
         email_verified: data.email_verified ?? false,
         phone_verified: data.phone_verified ?? false,
         preferences: data.preferences || {},
+        // Sans cette ligne, le champ disparaît de l'objet profil à chaque
+        // rechargement et l'onboarding se relance à tort.
+        has_seen_onboarding: data.has_seen_onboarding ?? false,
         created_at: data.created_at || new Date().toISOString(),
         updated_at: data.updated_at || new Date().toISOString(),
-      };
+      } as Profile;
 
       profileCache.set(userId, { data: fullProfile, timestamp: Date.now() });
       return fullProfile;
@@ -462,8 +470,18 @@ export const useAuthStore = create<AuthState>()(
 
         profileCache.delete(user.id);
 
+        // On fusionne au lieu de remplacer, et on protège explicitement
+        // `has_seen_onboarding` : une mise à jour partielle (photo, nom…)
+        // ne doit jamais faire réapparaître le parcours de découverte.
         set((state) => ({
-          profile: state.profile ? { ...state.profile, ...data } : null,
+          profile: state.profile
+            ? {
+                ...state.profile,
+                ...data,
+                has_seen_onboarding:
+                  (data as any).has_seen_onboarding ?? state.profile.has_seen_onboarding,
+              }
+            : null,
         }));
       },
     }),

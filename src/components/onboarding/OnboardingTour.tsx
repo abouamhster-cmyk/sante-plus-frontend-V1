@@ -69,29 +69,36 @@ export const OnboardingTour = ({ onComplete }: OnboardingTourProps) => {
   // 1. VÉRIFICATION DOUBLE SÉCURISÉ (BASE DE DONNÉES + CACHE COHÉRENT)
   // ============================================================
   useEffect(() => {
+    // ── Source 1 : la base de données (fait autorité) ──────────
     if ((profile as any)?.has_seen_onboarding === true) {
       setHasSeenTour(true);
       setIsReady(true);
       return;
     }
 
+    // ── Source 2 : le localStorage (filet de sécurité) ─────────
+    // On ne se fie PAS uniquement à la base : si le champ n'est pas
+    // renvoyé par une requête (colonne oubliée dans un SELECT, panne
+    // réseau, cache partiel), l'utilisateur reverrait tout le parcours
+    // de découverte alors qu'il l'a déjà terminé. C'est exactement ce
+    // qui se produisait après une simple modification de photo de profil.
     const saved = localStorage.getItem(TOUR_STORAGE_KEY);
     if (saved && profile?.id) {
       try {
         const data = JSON.parse(saved);
         if (data.version === TOUR_VERSION && data.seen === true && data.userId === profile.id) {
           setHasSeenTour(true);
-        } else {
-          setHasSeenTour(false);
+          setIsReady(true);
+          return;
         }
       } catch (e) {
-        console.warn('Erreur lecture tour:', e);
+        /* entrée corrompue : on retombe sur le comportement par défaut */
       }
-    } else {
-      setHasSeenTour(false);
     }
+
+    setHasSeenTour(false);
     setIsReady(true);
-  }, [profile]);
+  }, [profile?.id, (profile as any)?.has_seen_onboarding]);
 
   // ============================================================
   // SÉCURITÉ DE SESSION : Réinitialiser l'état d'onboarding dès la déconnexion/reconnexion

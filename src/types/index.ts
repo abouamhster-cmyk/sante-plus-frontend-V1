@@ -122,6 +122,10 @@ export interface Profile {
   email_verified: boolean;
   phone_verified: boolean;
   preferences: Record<string, any>;
+  /** Vrai une fois le parcours de découverte terminé.
+   *  Absent du type auparavant : le code y accédait via `(profile as any)`,
+   *  ce qui masquait le fait que le champ n'était jamais chargé. */
+  has_seen_onboarding: boolean;
   created_at: string;
   updated_at: string;
 }
