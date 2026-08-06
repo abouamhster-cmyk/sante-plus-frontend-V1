@@ -2,7 +2,7 @@
  
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { assignmentAPI, authAPI } from '@/lib/api';
+import api, { assignmentAPI, authAPI } from '@/lib/api';
 import {
   Users,
   UserCheck,
@@ -20,6 +20,9 @@ import {
   Phone,
   Mail,
   UserMinus,
+  Palmtree,
+  Ban,
+  Undo2,
 } from 'lucide-react';
 import { getThemeColors, getThemeByRole } from '@/lib/permissions';
 import { useAuthStore } from '@/stores/authStore';
@@ -281,20 +284,69 @@ const AidantsPage = () => {
     }
   };
 
-  const handleToggleAvailability = async (id: string, available: boolean) => {
-    setProcessingId(id);
-    try {
-      const { error } = await supabase
-        .from('aidants')
-        .update({ available: !available })
-        .eq('id', id);
+  // ============================================================
+  // DISPONIBILITÉ D'UN AIDANT — congé, reprise, désactivation
+  // ============================================================
+  // Remplace l'ancien handleToggleAvailability, qui contenait un bug :
+  // il était appelé avec `!aidant.available` puis écrivait `!available`
+  // en base — soit une double négation qui réécrivait la valeur
+  // d'origine. Le bouton semblait fonctionner (le message de succès
+  // s'affichait) mais la disponibilité ne changeait jamais.
+  //
+  // On passe désormais par POST /admin/aidants/:id/availability avec
+  // une action explicite : impossible de se tromper de sens, et le
+  // backend notifie l'aidant du changement.
+  const handleAvailabilityAction = async (
+    aidant: any,
+    action: 'leave' | 'return' | 'withdraw'
+  ) => {
+    const labels = {
+      leave: { title: 'Mettre cet aidant en congé ?', msg: "Il ne recevra plus de nouvelle mission jusqu'à son retour.", ok: 'Mettre en congé' },
+      return: { title: 'Rétablir sa disponibilité ?', msg: 'Il pourra de nouveau recevoir des missions.', ok: 'Rétablir' },
+      withdraw: { title: 'Désactiver ce compte aidant ?', msg: "L'aidant ne pourra plus recevoir de mission. Ses bénéficiaires devront être réassignés.", ok: 'Désactiver' },
+    }[action];
 
-      if (error) throw error;
-      toast.success(`Disponibilité ${!available ? 'activée 🟢' : 'désactivée 🔴'}`);
+    const confirmed = await confirmDialog({
+      title: labels.title,
+      message: labels.msg,
+      confirmLabel: labels.ok,
+      variant: action === 'return' ? 'default' : 'danger',
+    });
+    if (!confirmed) return;
+
+    // Date de retour : facultative, saisie libre au format AAAA-MM-JJ.
+    let until: string | null = null;
+    if (action === 'leave') {
+      const saisie = window.prompt(
+        'Date de retour prévue (AAAA-MM-JJ) — laisser vide si indéterminée :',
+        ''
+      );
+      if (saisie && /^\d{4}-\d{2}-\d{2}$/.test(saisie.trim())) {
+        until = saisie.trim();
+      } else if (saisie && saisie.trim()) {
+        toast.error('Format de date attendu : AAAA-MM-JJ');
+        return;
+      }
+    }
+
+    setProcessingId(aidant.id);
+    try {
+      const res = await api.post(`/admin/aidants/${aidant.id}/availability`, { action, until });
+
+      const restants = res.data?.activeAssignments ?? 0;
+      if (action === 'withdraw' && restants > 0) {
+        toast.success(`Compte désactivé — ${restants} bénéficiaire(s) à réassigner`, { duration: 6000 });
+      } else if (action === 'leave') {
+        toast.success(until ? `En congé jusqu'au ${until}` : 'Mis en congé');
+      } else if (action === 'return') {
+        toast.success('Disponibilité rétablie');
+      } else {
+        toast.success('Compte désactivé');
+      }
+
       await fetchAidants();
     } catch (error: any) {
-      console.error('Toggle availability error:', error);
-      toast.error('Erreur lors de la mise à jour : ' + error.message);
+      toast.error(error?.response?.data?.error || 'Erreur lors de la mise à jour');
     } finally {
       setProcessingId(null);
     }
@@ -474,14 +526,60 @@ const AidantsPage = () => {
                     >
                       {isBusy ? <Loader2 size={14} className="animate-spin" /> : <><CheckCircle size={14} /> Activer le compte</>}
                     </button>
-                  ) : (
+                  ) : isBusy ? (
+                    <span className="h-9 px-4 flex items-center">
+                      <Loader2 size={14} className="animate-spin text-gray-400" />
+                    </span>
+                  ) : aidant.status === 'inactive' ? (
+                    // Compte désactivé : seule la réactivation a du sens.
                     <button
-                      onClick={() => handleToggleAvailability(aidant.id, !aidant.available)}
-                      disabled={isBusy}
-                      className="h-9 px-4 rounded-xl text-xs font-bold border bg-gray-50 hover:bg-gray-100 transition disabled:opacity-50"
+                      onClick={() => handleAvailabilityAction(aidant, 'return')}
+                      className="h-9 px-3 rounded-xl text-xs font-bold border transition flex items-center gap-1.5"
+                      style={{ borderColor: '#16a34a40', color: '#15803d', background: '#16a34a0d' }}
+                      title="Réactiver ce compte aidant"
                     >
-                      {isBusy ? <Loader2 size={14} className="animate-spin" /> : (aidant.available ? 'Désactiver' : 'Activer')}
+                      <Undo2 size={13} /> Réactiver
                     </button>
+                  ) : aidant.available === false ? (
+                    // En congé : on propose le retour, et la sortie définitive.
+                    <>
+                      <button
+                        onClick={() => handleAvailabilityAction(aidant, 'return')}
+                        className="h-9 px-3 rounded-xl text-xs font-bold border transition flex items-center gap-1.5"
+                        style={{ borderColor: '#16a34a40', color: '#15803d', background: '#16a34a0d' }}
+                        title="Fin de congé"
+                      >
+                        <Undo2 size={13} /> De retour
+                      </button>
+                      <button
+                        onClick={() => handleAvailabilityAction(aidant, 'withdraw')}
+                        className="h-9 w-9 rounded-xl border transition flex items-center justify-center"
+                        style={{ borderColor: '#dc262640', color: '#dc2626' }}
+                        title="Désactiver définitivement"
+                      >
+                        <Ban size={13} />
+                      </button>
+                    </>
+                  ) : (
+                    // Actif : mise en congé, ou désactivation.
+                    <>
+                      <button
+                        onClick={() => handleAvailabilityAction(aidant, 'leave')}
+                        className="h-9 px-3 rounded-xl text-xs font-bold border transition flex items-center gap-1.5"
+                        style={{ borderColor: '#f59e0b45', color: '#b45309', background: '#f59e0b0d' }}
+                        title="Congé, arrêt maladie, indisponibilité"
+                      >
+                        <Palmtree size={13} /> Congé
+                      </button>
+                      <button
+                        onClick={() => handleAvailabilityAction(aidant, 'withdraw')}
+                        className="h-9 w-9 rounded-xl border transition flex items-center justify-center"
+                        style={{ borderColor: '#dc262640', color: '#dc2626' }}
+                        title="Désactiver définitivement"
+                      >
+                        <Ban size={13} />
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
