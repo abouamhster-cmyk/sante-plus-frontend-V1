@@ -124,7 +124,16 @@ const PatientDetailPage = () => {
 
   useEffect(() => {
     if (id && visits.length > 0) {
-      const filtered = visits.filter((v) => v.patient_id === id);
+      // Une visite peut viser un BÉNÉFICIAIRE (patient_id) ou un COMPTE
+      // PERSONNEL (target_user_id / user_id). L'ancien filtre ne testait que
+      // patient_id : pour un compte personnel, aucune visite ne remontait et
+      // les compteurs restaient à zéro alors que des visites existaient.
+      const filtered = visits.filter(
+        (v: any) =>
+          v.patient_id === id ||
+          v.target_user_id === id ||
+          (!v.patient_id && v.user_id === id)
+      );
       setPatientVisits(filtered);
     }
   }, [visits, id]);
@@ -304,6 +313,16 @@ const PatientDetailPage = () => {
   };
 
   const renderSubscriptionStatus = () => {
+    // ⚠️ Ce bloc était réservé aux AIDANTS — c'est-à-dire au seul rôle qui ne
+    // peut pas lire la table `abonnements` (politique RLS : titulaire ou staff).
+    // Il ne pouvait donc jamais afficher autre chose que « aucun abonnement »,
+    // que le forfait soit actif ou non. Il est neutralisé.
+    //
+    // Le forfait relève de la relation commerciale entre la famille et Santé Plus ;
+    // l'aidant n'en a pas besoin pour effectuer sa mission.
+    return null;
+
+    // eslint-disable-next-line no-unreachable
     if (!isAidantRole) return null;
 
     if (isLoadingPatientSub) {
@@ -332,6 +351,11 @@ const PatientDetailPage = () => {
         </div>
       );
     }
+
+    // Un aidant n'a pas accès aux abonnements (politique RLS) : affirmer
+    // « aucun abonnement » serait affirmer quelque chose qu'on ne sait pas.
+    // On n'affiche rien plutôt qu'une information potentiellement fausse.
+    if (isAidantRole) return null;
 
     return (
       <div className="flex items-center gap-2 text-sm" style={{ color: colors.gold || '#c9a84c' }}>
@@ -424,11 +448,22 @@ const PatientDetailPage = () => {
           color={person.status === 'active' ? '#4CAF50' : '#EF4444'}
         />
         <StatCard label="Visites" value={patientVisits.length} color={colors.primary} />
-        <StatCard
-          label="Restantes"
-          value={realHasActiveSubscription ? realRemainingVisits : '0'}
-          color={realRemainingVisits > 0 ? '#4CAF50' : '#EF4444'}
-        />
+        {/* « Restantes » dépend du forfait, qu'un aidant ne peut pas lire (RLS).
+            Afficher 0 lui ferait croire que le compte est épuisé. On remplace
+            par une donnée qui le concerne vraiment : les visites déjà réalisées. */}
+        {isAidantRole ? (
+          <StatCard
+            label="Terminées"
+            value={patientVisits.filter((v: any) => ['terminee', 'validee'].includes(v.status)).length}
+            color="#4CAF50"
+          />
+        ) : (
+          <StatCard
+            label="Restantes"
+            value={realHasActiveSubscription ? realRemainingVisits : '0'}
+            color={realRemainingVisits > 0 ? '#4CAF50' : '#EF4444'}
+          />
+        )}
         <StatCard
           label="En attente"
           value={pendingVisits.length}
@@ -495,14 +530,16 @@ const PatientDetailPage = () => {
             </div>
           )}
 
-          {!realHasActiveSubscription && isAidantRole && (
-            <div className="mt-3.5 p-3.5 rounded-xl" style={{ backgroundColor: '#EF444415', border: '1px solid #EF444430' }}>
-              <p className="text-xs font-semibold flex items-center gap-2 leading-relaxed text-red-700">
-                <AlertCircle size={16} />
-                <span>💳 Aucun abonnement actif pour ce bénéficiaire.</span>
-              </p>
-            </div>
-          )}
+          {/* ⚠️ BANDEAU SUPPRIMÉ POUR LES AIDANTS — il affichait une information fausse.
+              La requête sur `abonnements` filtre sur user_id = auth.uid() (politique RLS).
+              Un aidant n'étant ni le titulaire du forfait ni membre du staff, elle
+              renvoyait zéro ligne SANS erreur : le code en concluait « aucun abonnement »
+              et affichait une alerte rouge, alors que le forfait pouvait être parfaitement
+              actif. L'aidant lisait donc l'inverse de la réalité.
+
+              Le forfait relève par ailleurs de la relation commerciale entre la famille et
+              Santé Plus : l'aidant n'a pas à le connaître pour effectuer sa mission. On ne
+              cherche donc pas à lui en donner l'accès, on retire l'affichage. */}
         </div>
       )}
 
@@ -617,11 +654,8 @@ const PatientDetailPage = () => {
                     Planifier une visite
                   </button>
                 )}
-                {isAidantRole && !realHasActiveSubscription && (
-                  <p className="text-[10px] font-bold mt-4 uppercase tracking-wide" style={{ color: colors.gold || '#c9a84c' }}>
-                    💳 Aucun abonnement actif. Contactez l'administrateur.
-                  </p>
-                )}
+                {/* Message retiré : reposait sur realHasActiveSubscription, qui vaut
+                    toujours false pour un aidant faute d'accès à la table (RLS). */}
               </div>
             )}
           </div>
