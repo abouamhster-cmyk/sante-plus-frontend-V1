@@ -38,7 +38,7 @@ const VisitsPage = () => {
   const { profile, role, user } = useAuthStore();
   const brand = useBranding();
   const colors = brand.colors;
-  const { visits, isLoading, fetchVisits, startVisit, cancelVisit, hasMore, isLoadingMore, loadMoreVisits, total, isStaleData, cacheTimestamp } = useVisitStore();
+  const { visits, isLoading, fetchVisits, startVisit, cancelVisit, approveVisit, refuseVisit, hasMore, isLoadingMore, loadMoreVisits, total, isStaleData, cacheTimestamp } = useVisitStore();
   const { patients, fetchPatients } = usePatientStore();
 
   const {
@@ -249,6 +249,51 @@ const VisitsPage = () => {
     }
   };
 
+  // ============================================================
+  // ACCEPTER / REFUSER — réservé à l'aidant assigné
+  // ============================================================
+  // Ces deux actions existaient déjà côté store (approveVisit /
+  // refuseVisit) et VisitCard prévoyait les boutons correspondants,
+  // mais la page ne les branchait jamais. Un aidant ne pouvait donc
+  // ni accepter ni décliner une mission : il n'avait que « Démarrer ».
+  const handleApproveVisit = async (visitId: string) => {
+    if (isActionPending.current) return;
+
+    isActionPending.current = true;
+    try {
+      await approveVisit(visitId);
+      toast.success('Visite acceptée — la famille a été prévenue');
+      fetchVisits();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Erreur lors de l\'acceptation');
+    } finally {
+      isActionPending.current = false;
+    }
+  };
+
+  const handleRefuseVisit = async (visitId: string) => {
+    if (isActionPending.current) return;
+
+    const confirmed = await confirmDialog({
+      title: 'Refuser cette mission ?',
+      message: "La visite sera remise en attente d'attribution et l'administration en sera informée.",
+      confirmLabel: 'Refuser',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+
+    isActionPending.current = true;
+    try {
+      await refuseVisit(visitId, '');
+      toast.success('Mission refusée — l\'administration va réassigner');
+      fetchVisits();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Erreur lors du refus');
+    } finally {
+      isActionPending.current = false;
+    }
+  };
+
   if (isLoading || subLoading) {
     return (
       <div className="w-full max-w-5xl mx-auto space-y-4 pb-6 px-1 sm:px-0">
@@ -410,6 +455,19 @@ const VisitsPage = () => {
                 onCancel={
                   canCancelVisit && (visit.status === 'planifiee' || visit.status === 'en_attente')
                     ? () => handleCancelVisit(visit.id)
+                    : undefined
+                }
+                onApprove={
+                  // L'aidant assigné peut accepter tant qu'il n'a pas répondu.
+                  isAidantRole && (visit.status === 'planifiee' || visit.status === 'en_attente')
+                    ? () => handleApproveVisit(visit.id)
+                    : undefined
+                }
+                onRefuse={
+                  // Le refus reste possible après acceptation : un imprévu
+                  // peut survenir, mieux vaut le signaler que ne pas venir.
+                  isAidantRole && ['planifiee', 'en_attente', 'acceptee'].includes(visit.status)
+                    ? () => handleRefuseVisit(visit.id)
                     : undefined
                 }
                 onShowAssignAidantModal={
