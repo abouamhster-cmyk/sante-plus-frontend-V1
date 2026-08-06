@@ -443,6 +443,17 @@ const VisitDetailPage = () => {
 
   const canAssignAidant = isAdminOrCoordinator && (hasNoAidant || isWaitingAidant);
 
+  // Remplacement d'un aidant DÉJÀ assigné.
+  // Il n'existait aucun moyen de le faire : le bouton d'assignation
+  // disparaissait dès qu'un aidant était attaché. En cas de congé,
+  // d'arrêt maladie ou de départ, l'administration devait annuler la
+  // visite et la recréer. La route backend /visits/:id/reassign
+  // existait pourtant déjà, sans interface pour l'appeler.
+  const canReplaceAidant =
+    isAdminOrCoordinator &&
+    !!visit?.aidant_id &&
+    ['planifiee', 'en_attente', 'acceptee'].includes(visit?.status || '');
+
   const aidantStatus = getAidantDisplayStatus();
 
   // RETOUR ANTICIPÉ DE CHARGEMENT
@@ -576,6 +587,18 @@ const VisitDetailPage = () => {
             >
               <UserPlus size={14} />
               <span>Assigner un aidant</span>
+            </button>
+          )}
+
+          {canReplaceAidant && (
+            <button
+              onClick={() => setShowAssignModal(true)}
+              className="flex items-center gap-1.5 px-3.5 h-10 rounded-xl text-xs font-semibold transition hover:opacity-90 border-2"
+              style={{ borderColor: '#FF5722', color: '#FF5722', background: 'transparent' }}
+              title="Congé, indisponibilité ou départ de l'aidant"
+            >
+              <UserPlus size={14} />
+              <span>Remplacer l'aidant</span>
             </button>
           )}
         </div>

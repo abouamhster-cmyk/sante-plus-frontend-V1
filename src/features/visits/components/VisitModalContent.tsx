@@ -5,6 +5,7 @@ import { Calendar, Clock, User, UserCircle, Users, Search, AlertCircle, CreditCa
 
 import { Visit, Patient } from '@/types';
 import { useVisitStore } from '@/stores/visitStore';
+import { TargetContextPanel, TargetContext } from './TargetContextPanel';
 import { useAuthStore } from '@/stores/authStore';
 import { useSubscriptionGuard } from '@/hooks/useSubscriptionGuard';
 import { useTerminology } from '@/hooks/useTerminology';
@@ -75,6 +76,10 @@ export const VisitModalContent = ({
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
 
   const [targetType, setTargetType] = useState<'account' | 'patient'>('account');
+  // Contexte de la cible (aidant permanent + forfait), chargé dès que la
+  // cible est connue. Sert à informer AVANT validation, et à pré-remplir
+  // aidant_id pour éviter l'ouverture du wizard quand un aidant existe déjà.
+  const [targetContext, setTargetContext] = useState<TargetContext | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState('');
 
   const [formData, setFormData] = useState({
@@ -306,6 +311,25 @@ export const VisitModalContent = ({
       if (isFamilyUser && !can('visit')) {
         data.is_ponctual = true;
         data.requires_payment = true;
+      }
+
+      // ============================================================
+      // AIDANT PERMANENT — attribution automatique
+      // ============================================================
+      // Si le compte cible a déjà un aidant attitré ET qu'il est
+      // disponible, on l'attache directement à la visite.
+      //
+      // Sans cela, le backend répondait 422 WIZARD_REQUIRED et ouvrait
+      // une fenêtre de choix — alors qu'il n'y avait rien à choisir :
+      // l'aidant était déjà connu. C'est ce détour qui donnait
+      // l'impression qu'il fallait « assigner » après coup.
+      //
+      // Un aidant en congé ou retiré n'est volontairement PAS attaché :
+      // le wizard s'ouvrira pour désigner un remplaçant, ce qui est le
+      // comportement souhaitable.
+      if (targetContext?.aidant && targetContext.aidant.is_available) {
+        data.aidant_id = targetContext.aidant.id;
+        data.assignment_type = 'permanente';
       }
 
       if (mode === 'create') {
@@ -585,6 +609,18 @@ export const VisitModalContent = ({
         {!isAdmin && renderFamilyContent()}
 
         {targetType === 'patient' && renderPatientSelector()}
+
+        {/* Situation réelle de la cible : aidant permanent et forfait.
+            Affichée pendant la saisie, plus après un échec de création. */}
+        <TargetContextPanel
+          targetType={targetType === 'patient' ? 'patient' : 'personal_account'}
+          targetId={
+            targetType === 'patient'
+              ? (formData.patient_id || null)
+              : (isAdmin ? (selectedAccountId || null) : (profile?.id || null))
+          }
+          onContextLoaded={setTargetContext}
+        />
       </div>
 
       {/* 2. SÉLECTEUR DE TYPE D'INTERVENTION */}
